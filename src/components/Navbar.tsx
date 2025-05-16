@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
     AppBar,
     Toolbar,
@@ -10,13 +11,16 @@ import {
 import { AutoGraph } from '@mui/icons-material';
 
 const navLinks = [
-    { label: 'Dashboard', active: true },
-    { label: 'My Models', active: false },
-    { label: 'Market Data', active: false },
-    { label: 'Leaderboard', active: false },
+    { label: 'Dashboard', path: '/dashboard' },
+    { label: 'My Models', path: '/my-models' },
+    { label: 'Market Data', path: '/market-data' },
+    { label: 'Leaderboard', path: '/leaderboard' },
 ];
 
 const Navbar: React.FC = () => {
+    const navigate = useNavigate();
+    const location = useLocation();
+
     return (
         <AppBar
             // Always sticky at the top
@@ -36,7 +40,16 @@ const Navbar: React.FC = () => {
             <Container maxWidth="lg">
                 <Toolbar disableGutters sx={{ minHeight: 72 }}>
                     {/* Logo */}
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 4 }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1,
+                            mr: 4,
+                            cursor: 'pointer'
+                        }}
+                        onClick={() => navigate('/')}
+                    >
                         <AutoGraph sx={{ color: 'black', fontSize: 28 }} />
                         <Typography
                             variant="h6"
@@ -51,9 +64,10 @@ const Navbar: React.FC = () => {
                         {navLinks.map((link) => (
                             <Typography
                                 key={link.label}
+                                onClick={() => navigate(link.path)}
                                 sx={{
-                                    fontWeight: link.active ? 700 : 500,
-                                    color: link.active ? 'black' : 'grey.600',
+                                    fontWeight: location.pathname === link.path ? 700 : 500,
+                                    color: location.pathname === link.path ? 'black' : 'grey.600',
                                     fontSize: 18,
                                     mx: 2,
                                     cursor: 'pointer',
