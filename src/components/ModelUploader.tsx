@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
+import { useNavigate } from 'react-router-dom';
 import {
     Box,
     Button,
@@ -13,8 +14,9 @@ import {
     TextField,
     Typography,
     LinearProgress,
+    Fade,
 } from '@mui/material';
-import { CloudUpload, FileUpload, ChangeCircle } from '@mui/icons-material';
+import { CloudUpload, FileUpload, ChangeCircle, CheckCircle } from '@mui/icons-material';
 
 // Define the component
 const ModelUploader: React.FC = () => {
@@ -23,13 +25,20 @@ const ModelUploader: React.FC = () => {
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [modelType, setModelType] = useState('');
-    const [modelName, setModelName] = useState('');
+    const [name, setName] = useState<string>('');
+    const [status, setStatus] = useState<string>('');
+    const [showSuccess, setShowSuccess] = useState(false);
+    const navigate = useNavigate();
 
     // Dropzone configuration
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop: (acceptedFiles) => {
             if (acceptedFiles.length > 0) {
                 setFile(acceptedFiles[0]);
+                // default name to filename if not set
+                if (!name) {
+                    setName(acceptedFiles[0].name);
+                }
             }
         },
         accept: {
@@ -47,35 +56,44 @@ const ModelUploader: React.FC = () => {
     };
 
     // Handle upload
-    const handleUpload = () => {
-        if (!file || !modelType || !modelName) return;
+    const handleUpload = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!file) {
+            setStatus('Please select a file');
+            return;
+        }
 
         setUploading(true);
+        setProgress(0);
 
-        // Simulate upload progress
-        const interval = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 95) {
-                    clearInterval(interval);
-                    return prev;
-                }
-                return prev + 5;
+        const formData = new FormData();
+        formData.append('file', file);
+        if (name) {
+            formData.append('name', name);
+        }
+
+        try {
+            const response = await fetch('http://localhost:5005/scripts', {
+                method: 'POST',
+                body: formData,
             });
-        }, 300);
 
-        // Simulate upload completion
-        setTimeout(() => {
-            clearInterval(interval);
-            setProgress(100);
-
-            setTimeout(() => {
+            const data = await response.json();
+            if (response.ok) {
+                setProgress(100);
+                setShowSuccess(true);
+                // Wait for 2 seconds to show the success animation
+                setTimeout(() => {
+                    navigate('/my-models');
+                }, 2000);
+            } else {
+                setStatus(`Error: ${data.error}`);
                 setUploading(false);
-                setFile(null);
-                setProgress(0);
-                setModelName('');
-                setModelType('');
-            }, 1000);
-        }, 3000);
+            }
+        } catch (error) {
+            setStatus(`Error: ${error}`);
+            setUploading(false);
+        }
     };
 
     return (
@@ -144,7 +162,11 @@ const ModelUploader: React.FC = () => {
                                     <Button
                                         variant="text"
                                         size="small"
-                                        onClick={() => setFile(null)}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            setFile(null);
+                                            setName('');
+                                        }}
                                         disabled={uploading}
                                         startIcon={<ChangeCircle />}
                                     >
@@ -155,8 +177,8 @@ const ModelUploader: React.FC = () => {
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                     <TextField
                                         label="Model Name"
-                                        value={modelName}
-                                        onChange={(e) => setModelName(e.target.value)}
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
                                         disabled={uploading}
                                         fullWidth
                                     />
@@ -185,7 +207,7 @@ const ModelUploader: React.FC = () => {
                                     variant="contained"
                                     fullWidth
                                     onClick={handleUpload}
-                                    disabled={uploading || !modelType || !modelName}
+                                    disabled={uploading || !modelType || !name}
                                 >
                                     {uploading ? 'Uploading...' : 'Upload Model'}
                                 </Button>
@@ -207,6 +229,33 @@ const ModelUploader: React.FC = () => {
                     </Box>
                 </CardContent>
             </Card>
+            {status && <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>{status}</Typography>}
+
+            {/* Success Animation */}
+            <Fade in={showSuccess}>
+                <Box
+                    sx={{
+                        position: 'fixed',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 2,
+                        bgcolor: 'background.paper',
+                        p: 4,
+                        borderRadius: 2,
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                        zIndex: 1000,
+                    }}
+                >
+                    <CheckCircle sx={{ fontSize: 60, color: 'success.main' }} />
+                    <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                        Upload Successful!
+                    </Typography>
+                </Box>
+            </Fade>
         </Box>
     );
 };
