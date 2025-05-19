@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import {
     Box,
     Button,
@@ -29,6 +30,7 @@ const ModelUploader: React.FC = () => {
     const [status, setStatus] = useState<string>('');
     const [showSuccess, setShowSuccess] = useState(false);
     const navigate = useNavigate();
+    const { token } = useAuth();
 
     // Dropzone configuration
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -63,6 +65,11 @@ const ModelUploader: React.FC = () => {
             return;
         }
 
+        if (!token) {
+            setStatus('Please log in to upload a model');
+            return;
+        }
+
         setUploading(true);
         setProgress(0);
 
@@ -71,10 +78,16 @@ const ModelUploader: React.FC = () => {
         if (name) {
             formData.append('name', name);
         }
+        if (modelType) {
+            formData.append('model_type', modelType);
+        }
 
         try {
             const response = await fetch('http://localhost:5005/scripts', {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
                 body: formData,
             });
 

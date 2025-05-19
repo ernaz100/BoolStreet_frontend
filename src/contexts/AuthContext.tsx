@@ -18,17 +18,39 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<User | null>(null);
-    const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+    // Initialize state from localStorage
+    const [user, setUser] = useState<User | null>(() => {
+        const storedUser = localStorage.getItem('user');
+        return storedUser ? JSON.parse(storedUser) : null;
+    });
+    const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
     useEffect(() => {
         // Check if we have a token in localStorage
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
             setToken(storedToken);
-            // You might want to validate the token here
+            // If we have a token but no user data, try to fetch user data
+            if (!user) {
+                fetchUserData(storedToken);
+            }
         }
     }, []);
+
+    const fetchUserData = async (token: string) => {
+        try {
+            const response = await axios.get('http://localhost:5005/auth/me', {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const userData = response.data;
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
+        } catch (error) {
+            console.error('Failed to fetch user data:', error);
+            // If token is invalid, clear everything
+            logout();
+        }
+    };
 
     const login = async (googleToken: string) => {
         try {
@@ -38,8 +60,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             const { access_token, user: userData } = response.data;
 
-            // Store the token
+            // Store the token and user data
             localStorage.setItem('token', access_token);
+            localStorage.setItem('user', JSON.stringify(userData));
             setToken(access_token);
             setUser(userData);
         } catch (error) {
@@ -50,6 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const logout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('user');
         setToken(null);
         setUser(null);
     };
