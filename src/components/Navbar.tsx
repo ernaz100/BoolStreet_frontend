@@ -82,23 +82,6 @@ const Navbar: React.FC = () => {
                     {/* Auth buttons */}
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button
-                            variant="outlined"
-                            sx={{
-                                borderColor: 'black',
-                                color: 'black',
-                                fontWeight: 600,
-                                bgcolor: '#fff',
-                                textTransform: 'none',
-                                borderRadius: 2,
-                                px: 2.5,
-                                mr: 1,
-                                boxShadow: 'none',
-                                '&:hover': { borderColor: 'black', bgcolor: '#f5f5f5' },
-                            }}
-                        >
-                            Sign In
-                        </Button>
-                        <Button
                             variant="contained"
                             sx={{
                                 bgcolor: 'black',
@@ -111,7 +94,7 @@ const Navbar: React.FC = () => {
                                 '&:hover': { bgcolor: '#222' },
                             }}
                         >
-                            Sign Up
+                            Sign In
                         </Button>
                     </Box>
                 </Toolbar>
