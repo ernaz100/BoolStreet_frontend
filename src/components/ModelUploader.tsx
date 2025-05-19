@@ -19,8 +19,13 @@ import {
 } from '@mui/material';
 import { CloudUpload, FileUpload, ChangeCircle, CheckCircle } from '@mui/icons-material';
 
+// Define props interface
+interface ModelUploaderProps {
+    onSuccess?: () => void;
+}
+
 // Define the component
-const ModelUploader: React.FC = () => {
+const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
     // State management
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
@@ -83,7 +88,7 @@ const ModelUploader: React.FC = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:5005/scripts', {
+            const response = await fetch('http://localhost:5005/scripts/upload', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -97,7 +102,11 @@ const ModelUploader: React.FC = () => {
                 setShowSuccess(true);
                 // Wait for 2 seconds to show the success animation
                 setTimeout(() => {
-                    navigate('/my-models');
+                    if (onSuccess) {
+                        onSuccess();
+                    } else {
+                        navigate('/my-models');
+                    }
                 }, 2000);
             } else {
                 setStatus(`Error: ${data.error}`);
@@ -234,9 +243,6 @@ const ModelUploader: React.FC = () => {
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                                 Maximum file size: 500MB
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                Powered by Boolstreet
                             </Typography>
                         </Box>
                     </Box>
