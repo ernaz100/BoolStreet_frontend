@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
     AppBar,
     Toolbar,
     Typography,
-    Button,
     Box,
     Container,
+    Avatar,
+    Menu,
+    MenuItem,
 } from '@mui/material';
-import { AutoGraph } from '@mui/icons-material';
+import { AutoGraph, Logout } from '@mui/icons-material';
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../contexts/AuthContext';
 
 const navLinks = [
     { label: 'Dashboard', path: '/dashboard' },
@@ -20,6 +24,30 @@ const navLinks = [
 const Navbar: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { login, user, logout } = useAuth();
+    const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+    const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    const handleMenuClose = () => {
+        setAnchorEl(null);
+    };
+
+    const handleLogout = async () => {
+        await logout();
+        handleMenuClose();
+        navigate('/');
+    };
+
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        try {
+            await login(credentialResponse.credential);
+        } catch (error) {
+            console.error('Login failed:', error);
+        }
+    };
 
     return (
         <AppBar
@@ -79,23 +107,69 @@ const Navbar: React.FC = () => {
                             </Typography>
                         ))}
                     </Box>
-                    {/* Auth buttons */}
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button
-                            variant="contained"
-                            sx={{
-                                bgcolor: 'black',
-                                color: 'white',
-                                fontWeight: 600,
-                                textTransform: 'none',
-                                borderRadius: 2,
-                                px: 2.5,
-                                boxShadow: 'none',
-                                '&:hover': { bgcolor: '#222' },
-                            }}
-                        >
-                            Sign In
-                        </Button>
+                    {/* Auth BTN*/}
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        {user ? (
+                            <>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        cursor: 'pointer',
+                                        '&:hover': { opacity: 0.8 }
+                                    }}
+                                    onClick={handleMenuOpen}
+                                >
+                                    <Avatar
+                                        src={user.picture}
+                                        alt={user.name}
+                                        sx={{ width: 32, height: 32 }}
+                                    />
+                                    <Typography sx={{ color: 'black', fontWeight: 500 }}>
+                                        Hello, {user.name}
+                                    </Typography>
+                                </Box>
+                                <Menu
+                                    anchorEl={anchorEl}
+                                    open={Boolean(anchorEl)}
+                                    onClose={handleMenuClose}
+                                    PaperProps={{
+                                        elevation: 0,
+                                        sx: {
+                                            overflow: 'visible',
+                                            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.1))',
+                                            mt: 1.5,
+                                            '& .MuiAvatar-root': {
+                                                width: 32,
+                                                height: 32,
+                                                ml: -0.5,
+                                                mr: 1,
+                                            },
+                                        },
+                                    }}
+                                    transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                                    anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                                >
+                                    <MenuItem onClick={handleLogout} sx={{ gap: 1 }}>
+                                        <Logout fontSize="small" />
+                                        Logout
+                                    </MenuItem>
+                                </Menu>
+                            </>
+                        ) : (
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => {
+                                    console.log('Login Failed');
+                                }}
+                                theme="filled_black"
+                                text="signin"
+                                shape="pill"
+                                width="120"
+                                type="standard"
+                            />
+                        )}
                     </Box>
                 </Toolbar>
             </Container>

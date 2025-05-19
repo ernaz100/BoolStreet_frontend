@@ -1,5 +1,8 @@
+import React from 'react';
 import { Container, Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ModelUploader from './components/ModelUploader';
 import StockChart from './components/StockChart';
 import Navbar from './components/Navbar';
@@ -10,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import MyModels from './pages/MyModels';
 import MarketData from './pages/MarketData';
 import Leaderboard from './pages/Leaderboard';
+import SignUpDialog from './components/SignUpDialog';
 
 // Create a theme instance
 const theme = createTheme({
@@ -58,7 +62,13 @@ const theme = createTheme({
     },
 });
 
-function App() {
+// Protected Route component
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { isAuthenticated } = useAuth();
+    return isAuthenticated ? <>{children}</> : <SignUpDialog />;
+};
+
+const AppContent: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
@@ -85,10 +95,10 @@ function App() {
                                     </Box>
                                 </>
                             } />
-                            <Route path="/dashboard" element={<Dashboard />} />
-                            <Route path="/my-models" element={<MyModels />} />
-                            <Route path="/market-data" element={<MarketData />} />
-                            <Route path="/leaderboard" element={<Leaderboard />} />
+                            <Route path="/dashboard" element={<ProtectedRoute> <Dashboard /> </ProtectedRoute>} />
+                            <Route path="/my-models" element={<ProtectedRoute> <MyModels /> </ProtectedRoute>} />
+                            <Route path="/market-data" element={<ProtectedRoute> <MarketData /> </ProtectedRoute>} />
+                            <Route path="/leaderboard" element={<ProtectedRoute> <Leaderboard /> </ProtectedRoute>} />
                         </Routes>
                     </Box>
                     <Footer />
@@ -96,6 +106,16 @@ function App() {
             </Router>
         </ThemeProvider>
     );
-}
+};
+
+const App: React.FC = () => {
+    return (
+        <GoogleOAuthProvider clientId={process.env.REACT_APP_GOOGLE_CLIENT_ID || ''}>
+            <AuthProvider>
+                <AppContent />
+            </AuthProvider>
+        </GoogleOAuthProvider>
+    );
+};
 
 export default App; 
