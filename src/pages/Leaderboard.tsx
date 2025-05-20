@@ -1,57 +1,102 @@
-import React from 'react';
-import { Box, Container, Typography, Card, CardContent, Avatar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip } from '@mui/material';
-import { EmojiEvents, TrendingUp, Star } from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
+import { Box, Container, Typography, Card, CardContent, Avatar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, CircularProgress, Alert, AlertTitle, Button, Divider } from '@mui/material';
+import { EmojiEvents, TrendingUp, Star, Refresh, Person } from '@mui/icons-material';
+import axios from 'axios';
 
-// Mock data for top performers
-const topPerformers = [
-    {
-        rank: 1,
-        name: 'John Doe',
-        avatar: 'JD',
-        model: 'Quantum Predictor',
-        accuracy: '92%',
-        profit: '+$45,678',
-        winRate: '85%',
-    },
-    {
-        rank: 2,
-        name: 'Jane Smith',
-        avatar: 'JS',
-        model: 'Neural Net Alpha',
-        accuracy: '89%',
-        profit: '+$38,942',
-        winRate: '82%',
-    },
-    {
-        rank: 3,
-        name: 'Mike Johnson',
-        avatar: 'MJ',
-        model: 'AI Trader Pro',
-        accuracy: '87%',
-        profit: '+$32,156',
-        winRate: '79%',
-    },
-    {
-        rank: 4,
-        name: 'Sarah Wilson',
-        avatar: 'SW',
-        model: 'Market Master',
-        accuracy: '85%',
-        profit: '+$28,934',
-        winRate: '77%',
-    },
-    {
-        rank: 5,
-        name: 'David Brown',
-        avatar: 'DB',
-        model: 'Smart Predictor',
-        accuracy: '83%',
-        profit: '+$25,678',
-        winRate: '75%',
-    },
-];
+// Define interface for leaderboard data
+interface LeaderboardEntry {
+    rank: number | null;
+    name: string;
+    avatar: string | null;  // Can be URL to profile picture or initials
+    model: string;
+    accuracy: string;
+    profit: string;
+    winRate: string;
+    isCurrentUser?: boolean;
+}
+
+interface LeaderboardResponse {
+    leaderboard: LeaderboardEntry[];
+    currentUser: LeaderboardEntry | null;
+}
 
 const Leaderboard: React.FC = () => {
+    // State for leaderboard data
+    const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch leaderboard data
+    const fetchLeaderboardData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/leaderboard`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    }
+                }
+            );
+            setLeaderboardData(response.data);
+        } catch (err) {
+            setError('Unable to fetch leaderboard data. This could be due to a temporary service disruption or network issue.');
+            console.error('Error fetching leaderboard data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchLeaderboardData();
+        // Refresh data every 5 minutes
+        const interval = setInterval(fetchLeaderboardData, 5 * 60 * 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    if (loading) {
+        return (
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+                <CircularProgress />
+            </Container>
+        );
+    }
+
+    if (error) {
+        return (
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+                <Alert
+                    severity="error"
+                    sx={{
+                        mb: 3,
+                        '& .MuiAlert-message': {
+                            width: '100%'
+                        }
+                    }}
+                >
+                    <AlertTitle>Leaderboard Data Unavailable</AlertTitle>
+                    {error}
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<Refresh />}
+                            onClick={fetchLeaderboardData}
+                            sx={{ mt: 1 }}
+                        >
+                            Retry
+                        </Button>
+                    </Box>
+                </Alert>
+            </Container>
+        );
+    }
+
+    const topPerformers = leaderboardData?.leaderboard || [];
+    const currentUser = leaderboardData?.currentUser;
+
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             <Typography variant="h4" sx={{ mb: 4, fontWeight: 700 }}>
@@ -164,12 +209,12 @@ const Leaderboard: React.FC = () => {
                     </TableHead>
                     <TableBody>
                         {topPerformers.map((performer) => (
-                            <TableRow key={performer.rank}>
+                            <TableRow key={performer.rank || 'unranked'}>
                                 <TableCell>
                                     <Chip
-                                        label={`#${performer.rank}`}
+                                        label={`#${performer.rank || 'NA'}`}
                                         size="small"
-                                        color={performer.rank <= 3 ? 'primary' : 'default'}
+                                        color={performer.rank && performer.rank <= 3 ? 'primary' : 'default'}
                                         sx={{ fontWeight: 600 }}
                                     />
                                 </TableCell>
@@ -179,13 +224,14 @@ const Leaderboard: React.FC = () => {
                                             sx={{
                                                 width: 32,
                                                 height: 32,
-                                                bgcolor: performer.rank <= 3 ? 'primary.main' : 'grey.200',
-                                                color: performer.rank <= 3 ? 'white' : 'text.primary',
+                                                bgcolor: performer.rank && performer.rank <= 3 ? 'primary.main' : 'grey.200',
+                                                color: performer.rank && performer.rank <= 3 ? 'white' : 'text.primary',
                                                 fontSize: '0.875rem',
                                                 mr: 1,
                                             }}
+                                            src={performer.avatar?.startsWith('http') ? performer.avatar : undefined}
                                         >
-                                            {performer.avatar}
+                                            {!performer.avatar?.startsWith('http') && performer.avatar}
                                         </Avatar>
                                         {performer.name}
                                     </Box>
@@ -198,6 +244,51 @@ const Leaderboard: React.FC = () => {
                                 <TableCell align="right">{performer.winRate}</TableCell>
                             </TableRow>
                         ))}
+
+                        {/* Current User Row (if not in top performers) */}
+                        {currentUser && !topPerformers.some(p => p.isCurrentUser) && (
+                            <>
+                                <TableRow>
+                                    <TableCell colSpan={6}>
+                                        <Divider />
+                                    </TableCell>
+                                </TableRow>
+                                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                                    <TableCell>
+                                        <Chip
+                                            label={currentUser.rank ? `#${currentUser.rank}` : '#NA'}
+                                            size="small"
+                                            color="secondary"
+                                            sx={{ fontWeight: 600 }}
+                                        />
+                                    </TableCell>
+                                    <TableCell>
+                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <Avatar
+                                                sx={{
+                                                    width: 32,
+                                                    height: 32,
+                                                    bgcolor: 'secondary.main',
+                                                    color: 'white',
+                                                    fontSize: '0.875rem',
+                                                    mr: 1,
+                                                }}
+                                                src={currentUser.avatar?.startsWith('http') ? currentUser.avatar : undefined}
+                                            >
+                                                {!currentUser.avatar?.startsWith('http') ? <Person /> : null}
+                                            </Avatar>
+                                            {currentUser.name}
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>{currentUser.model}</TableCell>
+                                    <TableCell align="right">{currentUser.accuracy}</TableCell>
+                                    <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>
+                                        {currentUser.profit}
+                                    </TableCell>
+                                    <TableCell align="right">{currentUser.winRate}</TableCell>
+                                </TableRow>
+                            </>
+                        )}
                     </TableBody>
                 </Table>
             </TableContainer>

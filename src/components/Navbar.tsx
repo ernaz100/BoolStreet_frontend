@@ -14,11 +14,17 @@ import { AutoGraph, Logout } from '@mui/icons-material';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 
-const navLinks = [
+// Define navigation links for authenticated users
+const authenticatedNavLinks = [
     { label: 'Dashboard', path: '/dashboard' },
     { label: 'My Models', path: '/my-models' },
     { label: 'Market Data', path: '/market-data' },
     { label: 'Leaderboard', path: '/leaderboard' },
+];
+
+// Define navigation links for non-authenticated users
+const nonAuthenticatedNavLinks = [
+    { label: 'Pricing', path: '/pricing' },
 ];
 
 const Navbar: React.FC = () => {
@@ -48,6 +54,9 @@ const Navbar: React.FC = () => {
             console.error('Login failed:', error);
         }
     };
+
+    // Determine which navigation links to show based on authentication status
+    const navLinks = user ? authenticatedNavLinks : nonAuthenticatedNavLinks;
 
     return (
         <AppBar

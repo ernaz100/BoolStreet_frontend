@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard';
 import MyModels from './pages/MyModels';
 import MarketData from './pages/MarketData';
 import Leaderboard from './pages/Leaderboard';
+import Pricing from './pages/Pricing';
 import SignUpDialog from './components/SignUpDialog';
 
 // Create a theme instance
@@ -95,6 +96,7 @@ const AppContent: React.FC = () => {
                                     </Box>
                                 </>
                             } />
+                            <Route path="/pricing" element={<Pricing />} />
                             <Route path="/dashboard" element={<ProtectedRoute> <Dashboard /> </ProtectedRoute>} />
                             <Route path="/my-models" element={<ProtectedRoute> <MyModels /> </ProtectedRoute>} />
                             <Route path="/market-data" element={<ProtectedRoute> <MarketData /> </ProtectedRoute>} />
