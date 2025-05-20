@@ -1,25 +1,98 @@
-import React from 'react';
-import { Box, Container, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper } from '@mui/material';
-import { TrendingUp, TrendingDown, ShowChart } from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
+import { Box, Container, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, AlertTitle, Button } from '@mui/material';
+import { TrendingUp, TrendingDown, ShowChart, Refresh } from '@mui/icons-material';
+import axios from 'axios';
 
-// Mock data for market overview
-const marketOverview = [
-    { name: 'S&P 500', value: '4,783.45', change: '+1.2%', trend: 'up' },
-    { name: 'NASDAQ', value: '16,742.38', change: '+0.8%', trend: 'up' },
-    { name: 'DOW', value: '38,654.42', change: '-0.3%', trend: 'down' },
-    { name: 'VIX', value: '15.23', change: '-2.1%', trend: 'down' },
-];
+// Define interfaces for our data types
+interface MarketOverview {
+    name: string;
+    value: string;
+    change: string;
+    trend: 'up' | 'down';
+}
 
-// Mock data for top movers
-const topMovers = [
-    { symbol: 'AAPL', name: 'Apple Inc.', price: '175.04', change: '+2.3%', volume: '45.2M' },
-    { symbol: 'MSFT', name: 'Microsoft Corp.', price: '415.32', change: '+1.8%', volume: '28.7M' },
-    { symbol: 'GOOGL', name: 'Alphabet Inc.', price: '142.56', change: '-1.2%', volume: '15.4M' },
-    { symbol: 'AMZN', name: 'Amazon.com Inc.', price: '178.75', change: '+3.1%', volume: '32.1M' },
-    { symbol: 'META', name: 'Meta Platforms Inc.', price: '485.58', change: '+4.2%', volume: '22.3M' },
-];
+interface TopMover {
+    symbol: string;
+    name: string;
+    price: string;
+    change: string;
+    volume: string;
+}
 
 const MarketData: React.FC = () => {
+    // State for market data
+    const [marketOverview, setMarketOverview] = useState<MarketOverview[]>([]);
+    const [topMovers, setTopMovers] = useState<TopMover[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    // Fetch market data
+    const fetchMarketData = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+
+            // Fetch market overview
+            const overviewResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/market/overview`);
+            setMarketOverview(overviewResponse.data);
+
+            // Fetch top movers
+            const moversResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/market/top-movers`);
+            setTopMovers(moversResponse.data);
+        } catch (err) {
+            setError('Unable to fetch market data. This could be due to a temporary service disruption or network issue.');
+            console.error('Error fetching market data:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchMarketData();
+        // Refresh data every 5 minutes
+        const interval = setInterval(fetchMarketData, 5 * 60 * 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    if (loading) {
+        return (
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+                <CircularProgress />
+            </Container>
+        );
+    }
+
+    if (error) {
+        return (
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+                <Alert
+                    severity="error"
+                    sx={{
+                        mb: 3,
+                        '& .MuiAlert-message': {
+                            width: '100%'
+                        }
+                    }}
+                >
+                    <AlertTitle>Market Data Unavailable</AlertTitle>
+                    {error}
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<Refresh />}
+                            onClick={fetchMarketData}
+                            sx={{ mt: 1 }}
+                        >
+                            Retry
+                        </Button>
+                    </Box>
+                </Alert>
+            </Container>
+        );
+    }
+
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             <Typography variant="h4" sx={{ mb: 4, fontWeight: 700 }}>
