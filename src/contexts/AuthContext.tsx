@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 interface User {
@@ -25,21 +25,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
     const [token, setToken] = useState<string | null>(() => localStorage.getItem('token'));
 
-    useEffect(() => {
-        // Check if we have a token in localStorage
-        const storedToken = localStorage.getItem('token');
-        if (storedToken) {
-            setToken(storedToken);
-            // If we have a token but no user data, try to fetch user data
-            if (!user) {
-                fetchUserData(storedToken);
-            }
-        }
+    const logout = useCallback(() => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setToken(null);
+        setUser(null);
     }, []);
 
-    const fetchUserData = async (token: string) => {
+    const fetchUserData = useCallback(async (token: string) => {
         try {
-            const response = await axios.get('http://localhost:5005/auth/me', {
+            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/auth/me`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             const userData = response.data;
@@ -50,11 +45,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // If token is invalid, clear everything
             logout();
         }
-    };
+    }, [logout]);
+
+    useEffect(() => {
+        // Check if we have a token in localStorage
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+            setToken(storedToken);
+            // If we have a token but no user data, try to fetch user data
+            if (!user) {
+                fetchUserData(storedToken);
+            }
+        }
+    }, [user, fetchUserData]);
 
     const login = async (googleToken: string) => {
         try {
-            const response = await axios.post('http://localhost:5005/auth/google', {
+            const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/auth/google`, {
                 token: googleToken
             });
 
@@ -69,13 +76,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             console.error('Login failed:', error);
             throw error;
         }
-    };
-
-    const logout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setToken(null);
-        setUser(null);
     };
 
     return (

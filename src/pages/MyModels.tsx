@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Container, Typography, Card, CardContent, Chip, Button, Dialog } from '@mui/material';
-import { Add as AddIcon, TrendingUp, Speed, Psychology } from '@mui/icons-material';
+import { AddCircle, TrendingUp, Speed } from '@mui/icons-material';
 import axios from 'axios';
 import ModelUploader from '../components/ModelUploader';
 
@@ -27,7 +27,7 @@ const MyModels: React.FC = () => {
     const handleActivateModel = async (scriptId: number, currentActive: boolean) => {
         try {
             const response = await axios.post(
-                `http://localhost:5005/scripts/${scriptId}/activate`,
+                `${process.env.REACT_APP_BACKEND_URL}/scripts/${scriptId}/activate`,
                 { active: !currentActive },
                 {
                     headers: {
@@ -45,7 +45,7 @@ const MyModels: React.FC = () => {
     // Function to fetch scripts
     const fetchScripts = async () => {
         try {
-            const response = await axios.get('http://localhost:5005/scripts/list', {
+            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/scripts/list`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
@@ -123,7 +123,7 @@ const MyModels: React.FC = () => {
                     </Typography>
                     <Button
                         variant="contained"
-                        startIcon={<AddIcon />}
+                        startIcon={<AddCircle />}
                         onClick={handleDialogOpen}
                         size="large"
                         sx={{
@@ -228,7 +228,7 @@ const MyModels: React.FC = () => {
                     }}>
                         <Button
                             variant="outlined"
-                            startIcon={<AddIcon />}
+                            startIcon={<AddCircle />}
                             onClick={handleDialogOpen}
                             size="medium"
                             sx={{
