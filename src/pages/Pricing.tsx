@@ -10,7 +10,6 @@ import {
     ListItem,
     ListItemIcon,
     ListItemText,
-    useTheme,
 } from '@mui/material';
 import { CheckCircle } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -22,8 +21,9 @@ const pricingTiers = [
         price: 'Free',
         description: 'Perfect for getting started with algorithmic trading',
         features: [
-            'Up to 3 trading models',
+            '1 trading model',
             'Basic market data access',
+            'Your model is called once per day',
             'Community leaderboard access',
             'Email support',
         ],
@@ -39,9 +39,8 @@ const pricingTiers = [
             'Unlimited trading models',
             'Advanced market data access',
             'Real-time performance analytics',
+            'Up to 1-minute model execution intervals',
             'Priority support',
-            'Custom model deployment',
-            'API access',
         ],
         buttonText: 'Start Free Trial',
         highlighted: true,
@@ -64,7 +63,6 @@ const pricingTiers = [
 ];
 
 const Pricing: React.FC = () => {
-    const theme = useTheme();
     const navigate = useNavigate();
 
     return (
