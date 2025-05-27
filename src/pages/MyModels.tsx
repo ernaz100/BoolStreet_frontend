@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Box, Container, Typography, Card, CardContent, Chip, Button, Dialog } from '@mui/material';
 import { AddCircle, TrendingUp, Speed } from '@mui/icons-material';
 import axios from 'axios';
@@ -47,7 +47,7 @@ const MyModels: React.FC = () => {
     };
 
     // Function to fetch scripts
-    const fetchScripts = async () => {
+    const fetchScripts = useCallback(async () => {
         try {
             const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/scripts/list`, {
                 headers: {
@@ -65,7 +65,7 @@ const MyModels: React.FC = () => {
             setError('Failed to fetch scripts');
             setLoading(false);
         }
-    };
+    }, [logout, navigate]);
 
     // Function to handle successful model upload
     const handleUploadSuccess = () => {
@@ -76,7 +76,7 @@ const MyModels: React.FC = () => {
     // Fetch user scripts when component mounts
     useEffect(() => {
         fetchScripts();
-    }, []);
+    }, [fetchScripts]);
 
     if (loading) {
         return (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Box, Container, Typography, Paper, Card, CardContent, CircularProgress, Alert, Button, Dialog } from '@mui/material';
 import { TrendingUp, AccountBalance, Timeline, Assessment, AddCircle } from '@mui/icons-material';
 import ModelUploader from '../components/ModelUploader';
@@ -33,7 +33,7 @@ const Dashboard: React.FC = () => {
     };
 
     // Function to fetch dashboard data
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
@@ -79,12 +79,12 @@ const Dashboard: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [logout, navigate]);
 
     // Fetch dashboard stats and predictions on mount
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [fetchData]);
 
     // Metric cards config
     const metricCards = metrics ? [

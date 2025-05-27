@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Box, Container, Typography, Card, CardContent, Avatar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, CircularProgress, Alert, AlertTitle, Button, Divider } from '@mui/material';
 import { EmojiEvents, TrendingUp, Star, Refresh, Person } from '@mui/icons-material';
 import axios from 'axios';
@@ -31,7 +31,7 @@ const Leaderboard: React.FC = () => {
     const navigate = useNavigate();
 
     // Fetch leaderboard data
-    const fetchLeaderboardData = async () => {
+    const fetchLeaderboardData = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -56,7 +56,7 @@ const Leaderboard: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [logout, navigate]);
 
     useEffect(() => {
         fetchLeaderboardData();
@@ -64,7 +64,7 @@ const Leaderboard: React.FC = () => {
         const interval = setInterval(fetchLeaderboardData, 5 * 60 * 1000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchLeaderboardData]);
 
     if (loading) {
         return (

@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setToken(storedToken);
             fetchUserData(storedToken);
         }
-    }, []);
+    }, [fetchUserData]);
 
     const login = async (googleToken: string) => {
         try {

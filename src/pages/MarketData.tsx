@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Box, Container, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, AlertTitle, Button } from '@mui/material';
 import { TrendingUp, TrendingDown, ShowChart, Refresh } from '@mui/icons-material';
 import axios from 'axios';
@@ -31,7 +31,7 @@ const MarketData: React.FC = () => {
     const navigate = useNavigate();
 
     // Fetch market data
-    const fetchMarketData = async () => {
+    const fetchMarketData = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
@@ -54,7 +54,7 @@ const MarketData: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [logout, navigate]);
 
     useEffect(() => {
         fetchMarketData();
@@ -62,7 +62,7 @@ const MarketData: React.FC = () => {
         const interval = setInterval(fetchMarketData, 5 * 60 * 1000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [fetchMarketData]);
 
     if (loading) {
         return (
