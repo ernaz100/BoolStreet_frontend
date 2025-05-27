@@ -48,16 +48,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, [logout]);
 
     useEffect(() => {
-        // Check if we have a token in localStorage
+        // On mount, if a token exists, always verify it by fetching user data
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
             setToken(storedToken);
-            // If we have a token but no user data, try to fetch user data
-            if (!user) {
-                fetchUserData(storedToken);
-            }
+            fetchUserData(storedToken);
         }
-    }, [user, fetchUserData]);
+    }, []);
 
     const login = async (googleToken: string) => {
         try {

@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Box, Container, Typography, Card, CardContent, Avatar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, CircularProgress, Alert, AlertTitle, Button, Divider } from '@mui/material';
 import { EmojiEvents, TrendingUp, Star, Refresh, Person } from '@mui/icons-material';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 // Define interface for leaderboard data
 interface LeaderboardEntry {
@@ -25,6 +27,8 @@ const Leaderboard: React.FC = () => {
     const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { logout } = useAuth();
+    const navigate = useNavigate();
 
     // Fetch leaderboard data
     const fetchLeaderboardData = async () => {
@@ -40,6 +44,12 @@ const Leaderboard: React.FC = () => {
                 }
             );
             setLeaderboardData(response.data);
+            if (response.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
+
         } catch (err) {
             setError('Unable to fetch leaderboard data. This could be due to a temporary service disruption or network issue.');
             console.error('Error fetching leaderboard data:', err);

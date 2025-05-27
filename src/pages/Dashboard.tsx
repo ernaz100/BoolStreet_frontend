@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Box, Container, Typography, Paper, Card, CardContent, CircularProgress, Alert, Button, Dialog } from '@mui/material';
 import { TrendingUp, AccountBalance, Timeline, Assessment, AddCircle } from '@mui/icons-material';
 import ModelUploader from '../components/ModelUploader';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 // Utility function to get JWT token from localStorage (adjust if you use a different auth flow)
 const getToken = () => localStorage.getItem('token');
@@ -14,6 +16,10 @@ const Dashboard: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isEmpty, setIsEmpty] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
+
+    // Auth and navigation hooks for handling unauthorized
+    const { logout } = useAuth();
+    const navigate = useNavigate();
 
     // Function to handle dialog open/close
     const handleDialogOpen = () => setOpenDialog(true);
@@ -32,23 +38,27 @@ const Dashboard: React.FC = () => {
         setError(null);
         try {
             const token = getToken();
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
             // Fetch stats
-            const statsRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/dashboard/stats`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const statsRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/dashboard/stats`, { headers });
+            if (statsRes.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
             if (!statsRes.ok) throw new Error('Failed to fetch dashboard stats');
             const stats = await statsRes.json();
 
             // Fetch predictions
-            const predRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/dashboard/predictions`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+            const predRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/dashboard/predictions`, { headers });
+            if (predRes.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
             if (!predRes.ok) throw new Error('Failed to fetch predictions');
             const predData = await predRes.json();
 

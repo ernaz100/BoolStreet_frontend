@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Box, Container, Typography, Card, CardContent, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, AlertTitle, Button } from '@mui/material';
 import { TrendingUp, TrendingDown, ShowChart, Refresh } from '@mui/icons-material';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 // Define interfaces for our data types
 interface MarketOverview {
@@ -25,6 +27,8 @@ const MarketData: React.FC = () => {
     const [topMovers, setTopMovers] = useState<TopMover[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const { logout } = useAuth();
+    const navigate = useNavigate();
 
     // Fetch market data
     const fetchMarketData = async () => {
@@ -34,6 +38,11 @@ const MarketData: React.FC = () => {
 
             // Fetch market overview
             const overviewResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/market/overview`);
+            if (overviewResponse.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
             setMarketOverview(overviewResponse.data);
 
             // Fetch top movers

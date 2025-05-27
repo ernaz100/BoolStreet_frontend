@@ -3,6 +3,8 @@ import { Box, Container, Typography, Card, CardContent, Chip, Button, Dialog } f
 import { AddCircle, TrendingUp, Speed } from '@mui/icons-material';
 import axios from 'axios';
 import ModelUploader from '../components/ModelUploader';
+import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 // Interface for our script data
 interface UserScript {
@@ -18,6 +20,8 @@ const MyModels: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [openDialog, setOpenDialog] = useState(false);
+    const { logout } = useAuth();
+    const navigate = useNavigate();
 
     // Function to handle dialog open/close
     const handleDialogOpen = () => setOpenDialog(true);
@@ -51,6 +55,11 @@ const MyModels: React.FC = () => {
                 }
             });
             setScripts(response.data.scripts);
+            if (response.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
             setLoading(false);
         } catch (err) {
             setError('Failed to fetch scripts');
