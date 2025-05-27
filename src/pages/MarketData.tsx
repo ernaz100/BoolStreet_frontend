@@ -19,6 +19,9 @@ interface TopMover {
     price: string;
     change: string;
     volume: string;
+    open: string;
+    high: string;
+    low: string;
 }
 
 const MarketData: React.FC = () => {
@@ -37,7 +40,7 @@ const MarketData: React.FC = () => {
             setError(null);
 
             // Fetch market overview
-            const overviewResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/market/overview`);
+            const overviewResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/market/top-movers`);
             if (overviewResponse.status === 401) {
                 logout();
                 navigate('/');
@@ -46,7 +49,7 @@ const MarketData: React.FC = () => {
             setMarketOverview(overviewResponse.data);
 
             // Fetch top movers
-            const moversResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/market/top-movers`);
+            const moversResponse = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/market/overview`);
             setTopMovers(moversResponse.data);
         } catch (err) {
             setError('Unable to fetch market data. This could be due to a temporary service disruption or network issue.');
@@ -58,8 +61,8 @@ const MarketData: React.FC = () => {
 
     useEffect(() => {
         fetchMarketData();
-        // Refresh data every 5 minutes
-        const interval = setInterval(fetchMarketData, 5 * 60 * 1000);
+        // Refresh data every 30 minutes
+        const interval = setInterval(fetchMarketData, 30 * 60 * 1000);
 
         return () => clearInterval(interval);
     }, [fetchMarketData]);
@@ -105,10 +108,10 @@ const MarketData: React.FC = () => {
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             <Typography variant="h4" sx={{ mb: 4, fontWeight: 700 }}>
-                Market Data
+                Top Movers
             </Typography>
 
-            {/* Market Overview */}
+            {/* Top Movers */}
             <Box sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
@@ -153,9 +156,9 @@ const MarketData: React.FC = () => {
                 ))}
             </Box>
 
-            {/* Top Movers */}
+            {/* market data */}
             <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-                Top Movers
+                Market Data
             </Typography>
             <TableContainer component={Paper} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
                 <Table>
@@ -165,32 +168,42 @@ const MarketData: React.FC = () => {
                             <TableCell>Name</TableCell>
                             <TableCell align="right">Price</TableCell>
                             <TableCell align="right">Change</TableCell>
+                            <TableCell align="right">Open</TableCell>
+                            <TableCell align="right">Low</TableCell>
+                            <TableCell align="right">High</TableCell>
                             <TableCell align="right">Volume</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {topMovers.map((stock) => (
-                            <TableRow key={stock.symbol}>
-                                <TableCell component="th" scope="row">
-                                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                        <ShowChart sx={{ mr: 1, color: 'primary.main' }} />
-                                        {stock.symbol}
-                                    </Box>
-                                </TableCell>
-                                <TableCell>{stock.name}</TableCell>
-                                <TableCell align="right">{stock.price}</TableCell>
-                                <TableCell
-                                    align="right"
-                                    sx={{
-                                        color: stock.change.startsWith('+') ? 'success.main' : 'error.main',
-                                        fontWeight: 600,
-                                    }}
-                                >
-                                    {stock.change}
-                                </TableCell>
-                                <TableCell align="right">{stock.volume}</TableCell>
-                            </TableRow>
-                        ))}
+                        {/* Sort topMovers alphabetically by symbol before rendering */}
+                        {topMovers
+                            .slice() // create a shallow copy to avoid mutating state
+                            .sort((a, b) => a.symbol.localeCompare(b.symbol))
+                            .map((stock) => (
+                                <TableRow key={stock.symbol}>
+                                    <TableCell component="th" scope="row">
+                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <ShowChart sx={{ mr: 1, color: 'primary.main' }} />
+                                            {stock.symbol}
+                                        </Box>
+                                    </TableCell>
+                                    <TableCell>{stock.name}</TableCell>
+                                    <TableCell align="right">{stock.price}</TableCell>
+                                    <TableCell
+                                        align="right"
+                                        sx={{
+                                            color: stock.change.startsWith('+') ? 'success.main' : 'error.main',
+                                            fontWeight: 600,
+                                        }}
+                                    >
+                                        {stock.change}
+                                    </TableCell>
+                                    <TableCell align="right">{stock.open}</TableCell>
+                                    <TableCell align="right">{stock.low}</TableCell>
+                                    <TableCell align="right">{stock.high}</TableCell>
+                                    <TableCell align="right">{stock.volume}</TableCell>
+                                </TableRow>
+                            ))}
                     </TableBody>
                 </Table>
             </TableContainer>
