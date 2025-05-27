@@ -88,7 +88,7 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
         }
 
         try {
-            const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/scripts/upload`, {
+            const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/models/upload`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`

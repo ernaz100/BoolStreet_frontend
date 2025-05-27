@@ -123,7 +123,8 @@ const Dashboard: React.FC = () => {
             borderColor: 'divider',
         }}>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: '600px', mx: 'auto' }}>
-                You haven't uploaded any trading models yet. Upload your first model to start making predictions and tracking your performance.
+                You either haven't uploaded any trading models yet or your models have not been trading yet. <br />
+                Upload your first model to start making predictions and tracking your performance.
             </Typography>
             <Button
                 variant="contained"

@@ -28,10 +28,10 @@ const MyModels: React.FC = () => {
     const handleDialogClose = () => setOpenDialog(false);
 
     // Function to handle model activation/deactivation
-    const handleActivateModel = async (scriptId: number, currentActive: boolean) => {
+    const handleActivateModel = async (modelId: number, currentActive: boolean) => {
         try {
             const response = await axios.post(
-                `${process.env.REACT_APP_BACKEND_URL}/scripts/${scriptId}/activate`,
+                `${process.env.REACT_APP_BACKEND_URL}/models/${modelId}/activate`,
                 { active: !currentActive },
                 {
                     headers: {
@@ -39,8 +39,8 @@ const MyModels: React.FC = () => {
                     }
                 }
             );
-            // Update the scripts list with the new data
-            setScripts(response.data.scripts);
+            // Update the model list with the new data
+            setScripts(response.data.models);
         } catch (err) {
             setError('Failed to update model status');
         }
@@ -49,12 +49,12 @@ const MyModels: React.FC = () => {
     // Function to fetch scripts
     const fetchScripts = useCallback(async () => {
         try {
-            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/scripts/list`, {
+            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/models/list`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 }
             });
-            setScripts(response.data.scripts);
+            setScripts(response.data.models);
             if (response.status === 401) {
                 logout();
                 navigate('/');
@@ -62,7 +62,7 @@ const MyModels: React.FC = () => {
             }
             setLoading(false);
         } catch (err) {
-            setError('Failed to fetch scripts');
+            setError('Failed to fetch models');
             setLoading(false);
         }
     }, [logout, navigate]);
