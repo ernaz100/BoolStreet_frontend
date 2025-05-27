@@ -11,11 +11,11 @@ import {
     InputLabel,
     MenuItem,
     Select,
-    SelectChangeEvent,
     TextField,
     Typography,
     LinearProgress,
     Fade,
+    Chip,
 } from '@mui/material';
 import { CloudUpload, FileUpload, ChangeCircle, CheckCircle } from '@mui/icons-material';
 
@@ -24,20 +24,31 @@ interface ModelUploaderProps {
     onSuccess?: () => void;
 }
 
+// List of available tickers for selection
+const AVAILABLE_TICKERS = ['MSFT', 'TSLA', 'GOOGL', 'AAPL', 'AMZN'];
+
+// Supported file types for models and weights
+const SUPPORTED_MODEL_TYPES = {
+    'application/x-python-code': ['.py'],
+    'application/octet-stream': ['.pt', '.pth'],
+};
+
 // Define the component
 const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
     // State management
     const [file, setFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [modelType, setModelType] = useState('');
     const [name, setName] = useState<string>('');
     const [status, setStatus] = useState<string>('');
     const [showSuccess, setShowSuccess] = useState(false);
+    const [tickers, setTickers] = useState<string[]>([]); // State for selected tickers
+    const [tickersTouched, setTickersTouched] = useState(false); // Track if user tried to upload without tickers
+    const [weightsFile, setWeightsFile] = useState<File | null>(null); // Optional weights file
     const navigate = useNavigate();
     const { token } = useAuth();
 
-    // Dropzone configuration
+    // Dropzone configuration for model file
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop: (acceptedFiles) => {
             if (acceptedFiles.length > 0) {
@@ -48,23 +59,27 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
                 }
             }
         },
-        accept: {
-            'application/x-python-code': ['.py'],
-            'application/octet-stream': ['.h5', '.pkl', '.pt', '.pth', '.onnx'],
-            'application/zip': ['.zip'],
-        },
+        accept: SUPPORTED_MODEL_TYPES,
         maxFiles: 1,
         multiple: false,
     });
 
-    // Handle model type change
-    const handleModelTypeChange = (event: SelectChangeEvent) => {
-        setModelType(event.target.value);
-    };
+    // Dropzone configuration for optional weights file
+    const { getRootProps: getWeightsRootProps, getInputProps: getWeightsInputProps, isDragActive: isWeightsDragActive } = useDropzone({
+        onDrop: (acceptedFiles) => {
+            if (acceptedFiles.length > 0) {
+                setWeightsFile(acceptedFiles[0]);
+            }
+        },
+        accept: SUPPORTED_MODEL_TYPES,
+        maxFiles: 1,
+        multiple: false,
+    });
 
     // Handle upload
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
+        setTickersTouched(true); // Mark tickers as touched on upload attempt
         if (!file) {
             setStatus('Please select a file');
             return;
@@ -75,16 +90,25 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
             return;
         }
 
+        if (tickers.length === 0) {
+            setStatus('Please select at least one ticker');
+            return;
+        }
+
         setUploading(true);
         setProgress(0);
 
         const formData = new FormData();
         formData.append('file', file);
+        if (weightsFile) {
+            formData.append('weights', weightsFile); // Add weights if provided
+        }
         if (name) {
             formData.append('name', name);
         }
-        if (modelType) {
-            formData.append('model_type', modelType);
+        // Add selected tickers to form data as a JSON string
+        if (tickers.length > 0) {
+            formData.append('tickers', JSON.stringify(tickers));
         }
 
         try {
@@ -157,10 +181,9 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
                                 <input {...getInputProps()} />
                                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                                     <CloudUpload sx={{ fontSize: 40, color: 'text.secondary' }} />
-                                    <Typography variant="h6">Drag & drop your model file</Typography>
+                                    <Typography variant="h6">Drag & drop your code</Typography>
                                     <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 500 }}>
-                                        Upload your ML model file (.py, .h5, .pkl, .pt, .pth, .onnx) or a zip archive containing your model
-                                        and dependencies
+                                        Drop your python file here (.py)
                                     </Typography>
                                     <Button variant="outlined" startIcon={<FileUpload />} sx={{ mt: 2 }}>
                                         Select File
@@ -188,12 +211,71 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
                                             e.preventDefault();
                                             setFile(null);
                                             setName('');
+                                            setWeightsFile(null); // Reset weights if model is changed
                                         }}
                                         disabled={uploading}
                                         startIcon={<ChangeCircle />}
                                     >
                                         Change
                                     </Button>
+                                </Box>
+
+                                {/* Optional weights file input */}
+                                <Box>
+                                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                                        Optional: Upload Model Weights (.pt, .pth)
+                                    </Typography>
+                                    {!weightsFile ? (
+                                        <Box
+                                            {...getWeightsRootProps()}
+                                            sx={{
+                                                border: '2px dashed',
+                                                borderColor: isWeightsDragActive ? 'secondary.main' : 'grey.300',
+                                                borderRadius: 2,
+                                                p: 3,
+                                                textAlign: 'center',
+                                                cursor: 'pointer',
+                                                bgcolor: isWeightsDragActive ? 'secondary.light' : 'background.paper',
+                                                '&:hover': {
+                                                    borderColor: 'secondary.main',
+                                                },
+                                            }}
+                                        >
+                                            <input {...getWeightsInputProps()} />
+                                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                                                <CloudUpload sx={{ fontSize: 28, color: 'text.secondary' }} />
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Drag & drop weights file or click to select (.pt, .pth)
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    ) : (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1, border: 1, borderRadius: 1, borderColor: 'divider', mt: 1 }}>
+                                            <Box sx={{ bgcolor: 'secondary.light', p: 1, borderRadius: '50%' }}>
+                                                <FileUpload sx={{ color: 'secondary.main' }} />
+                                            </Box>
+                                            <Box sx={{ flex: 1, minWidth: 0 }}>
+                                                <Typography variant="body2" noWrap>
+                                                    {weightsFile.name}
+                                                </Typography>
+                                                <Typography variant="caption" color="text.secondary">
+                                                    {(weightsFile.size / 1024 / 1024).toFixed(2)} MB
+                                                </Typography>
+                                            </Box>
+                                            <Button
+                                                variant="text"
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    setWeightsFile(null);
+                                                }}
+                                                disabled={uploading}
+                                                startIcon={<ChangeCircle />}
+                                            >
+                                                Remove
+                                            </Button>
+                                        </Box>
+                                    )}
                                 </Box>
 
                                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -205,14 +287,35 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
                                         fullWidth
                                     />
 
-                                    <FormControl fullWidth disabled={uploading}>
-                                        <InputLabel>Model Type</InputLabel>
-                                        <Select value={modelType} onChange={handleModelTypeChange} label="Model Type">
-                                            <MenuItem value="classification">Classification</MenuItem>
-                                            <MenuItem value="regression">Regression</MenuItem>
-                                            <MenuItem value="reinforcement">Reinforcement Learning</MenuItem>
-                                            <MenuItem value="custom">Custom Algorithm</MenuItem>
+                                    {/* Multi-select dropdown for tickers, rendered as chips */}
+                                    <FormControl fullWidth disabled={uploading} error={tickersTouched && tickers.length === 0}>
+                                        <InputLabel>Tickers</InputLabel>
+                                        <Select
+                                            multiple
+                                            value={tickers}
+                                            onChange={(e) => {
+                                                setTickers(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value as string[]);
+                                                setTickersTouched(true); // Mark as touched when user interacts
+                                            }}
+                                            label="Tickers"
+                                            renderValue={(selected) => (
+                                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                    {(selected as string[]).map((value) => (
+                                                        <Chip key={value} label={value} />
+                                                    ))}
+                                                </Box>
+                                            )}
+                                        >
+                                            {AVAILABLE_TICKERS.map((ticker) => (
+                                                <MenuItem key={ticker} value={ticker}>
+                                                    {ticker}
+                                                </MenuItem>
+                                            ))}
                                         </Select>
+                                        {/* Show helper/error text if no ticker is selected and user tried to upload */}
+                                        {tickersTouched && tickers.length === 0 && (
+                                            <Typography variant="caption" color="error">Please select at least one ticker.</Typography>
+                                        )}
                                     </FormControl>
                                 </Box>
 
@@ -229,7 +332,8 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
                                     variant="contained"
                                     fullWidth
                                     onClick={handleUpload}
-                                    disabled={uploading || !modelType || !name}
+                                    // Disable if uploading, name, or tickers are not set
+                                    disabled={uploading || !name || tickers.length === 0}
                                 >
                                     {uploading ? 'Uploading...' : 'Upload Model'}
                                 </Button>
@@ -238,8 +342,7 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
 
                         <Box sx={{ mt: 2 }}>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                Supported formats: Python scripts (.py), TensorFlow (.h5), PyTorch (.pt, .pth), ONNX (.onnx), Pickle
-                                (.pkl), or ZIP archives
+                                Supported formats: Python scripts (.py), PyTorch (.pt, .pth)
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
                                 Maximum file size: 500MB

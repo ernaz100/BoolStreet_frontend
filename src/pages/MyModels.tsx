@@ -7,16 +7,38 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 // Interface for our script data
-interface UserScript {
+interface UserModel {
     id: number;
     name: string;
     active: boolean;
     created_at: string;
     balance: number;
+    tickers: string;
+}
+
+/**
+ * Helper function to parse tickers from backend format.
+ * Accepts a JSON string (e.g., '["MSFT", "TSLA"]') or a comma-separated string.
+ * Returns an array of tickers for display.
+ */
+function parseTickers(tickers?: string): string[] {
+    if (!tickers) return [];
+    try {
+        // Try to parse as JSON array
+        const parsed = JSON.parse(tickers);
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
+    } catch (e) {
+        // If not JSON, fallback to comma-separated
+        return tickers.split(',').map(t => t.trim()).filter(Boolean);
+    }
+    // Fallback: treat as single ticker
+    return [tickers];
 }
 
 const MyModels: React.FC = () => {
-    const [scripts, setScripts] = useState<UserScript[]>([]);
+    const [scripts, setScripts] = useState<UserModel[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [openDialog, setOpenDialog] = useState(false);
@@ -166,9 +188,19 @@ const MyModels: React.FC = () => {
                             >
                                 <CardContent>
                                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                            {script.name}
-                                        </Typography>
+                                        <Box>
+                                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                                {script.name}
+                                            </Typography>
+                                            {/* Display tickers as chips, parsed from backend format */}
+                                            {script.tickers && (
+                                                <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                                    {parseTickers(script.tickers).map((ticker, idx) => (
+                                                        <Chip key={idx} label={ticker} size="small" color="info" />
+                                                    ))}
+                                                </Box>
+                                            )}
+                                        </Box>
                                         <Chip
                                             label={script.active ? 'Active' : 'Inactive'}
                                             size="small"
