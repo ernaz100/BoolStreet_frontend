@@ -45,6 +45,7 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
     const [tickers, setTickers] = useState<string[]>([]); // State for selected tickers
     const [tickersTouched, setTickersTouched] = useState(false); // Track if user tried to upload without tickers
     const [weightsFile, setWeightsFile] = useState<File | null>(null); // Optional weights file
+    const [balance, setBalance] = useState<number>(10000); // State for balance, default 10000
     const navigate = useNavigate();
     const { token } = useAuth();
 
@@ -110,6 +111,8 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
         if (tickers.length > 0) {
             formData.append('tickers', JSON.stringify(tickers));
         }
+        // Add balance to form data
+        formData.append('balance', balance.toString());
 
         try {
             const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/models/upload`, {
@@ -285,6 +288,17 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
                                         onChange={(e) => setName(e.target.value)}
                                         disabled={uploading}
                                         fullWidth
+                                    />
+
+                                    {/* Balance input field */}
+                                    <TextField
+                                        label="Balance ($)"
+                                        type="number"
+                                        value={balance}
+                                        onChange={(e) => setBalance(Number(e.target.value))}
+                                        disabled={uploading}
+                                        fullWidth
+                                        inputProps={{ min: 0, step: 1000 }}
                                     />
 
                                     {/* Multi-select dropdown for tickers, rendered as chips */}
