@@ -211,7 +211,7 @@ const MyModels: React.FC = () => {
                                     <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                                         <TrendingUp sx={{ fontSize: 20, color: 'text.secondary', mr: 1 }} />
                                         <Typography variant="body2" color="text.secondary">
-                                            Balance: ${script.balance.toFixed(2)}
+                                            Balance: {script.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                                         </Typography>
                                     </Box>
 

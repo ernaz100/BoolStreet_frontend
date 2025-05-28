@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Box, Container, Typography, Paper, Card, CardContent, CircularProgress, Alert, Button, Dialog } from '@mui/material';
-import { TrendingUp, AccountBalance, Timeline, Assessment, AddCircle } from '@mui/icons-material';
+import { Box, Container, Typography, Paper, Card, CardContent, CircularProgress, Alert, Button, Dialog, Tooltip, IconButton } from '@mui/material';
+import { TrendingUp, AccountBalance, Timeline, Assessment, AddCircle, InfoOutlined } from '@mui/icons-material';
 import ModelUploader from '../components/ModelUploader';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -16,6 +16,10 @@ const Dashboard: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [isEmpty, setIsEmpty] = useState(false);
     const [openDialog, setOpenDialog] = useState(false);
+    // State for user balance
+    const [userBalance, setUserBalance] = useState<number | null>(null);
+    const [balanceLoading, setBalanceLoading] = useState(true);
+    const [balanceError, setBalanceError] = useState<string | null>(null);
 
     // Auth and navigation hooks for handling unauthorized
     const { logout } = useAuth();
@@ -81,10 +85,41 @@ const Dashboard: React.FC = () => {
         }
     }, [logout, navigate]);
 
+    // Fetch user balance
+    const fetchBalance = useCallback(async () => {
+        setBalanceLoading(true);
+        setBalanceError(null);
+        try {
+            const token = getToken();
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            };
+            const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/auth/balance`, { headers });
+            if (res.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
+            if (!res.ok) throw new Error('Failed to fetch balance');
+            const data = await res.json();
+            setUserBalance(data.balance);
+        } catch (err: any) {
+            setBalanceError(err.message || 'An error occurred');
+        } finally {
+            setBalanceLoading(false);
+        }
+    }, [logout, navigate]);
+
     // Fetch dashboard stats and predictions on mount
     useEffect(() => {
         fetchData();
     }, [fetchData]);
+
+    // Fetch balance on mount
+    useEffect(() => {
+        fetchBalance();
+    }, [fetchBalance]);
 
     // Metric cards config
     const metricCards = metrics ? [
@@ -144,6 +179,29 @@ const Dashboard: React.FC = () => {
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+            {/* Balance Overview - Top Right */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'background.paper', borderRadius: 2, px: 3, py: 1, border: '1px solid', borderColor: 'divider', boxShadow: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mr: 1 }}>
+                        Remaining Balance:
+                    </Typography>
+                    {balanceLoading ? (
+                        <CircularProgress size={18} sx={{ mx: 1 }} />
+                    ) : balanceError ? (
+                        <Typography color="error" variant="body2">Error</Typography>
+                    ) : (
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: userBalance !== null && userBalance < 0 ? 'error.main' : 'success.main', mr: 1 }}>
+                            {userBalance !== null ? userBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : 'N/A'}
+                        </Typography>
+                    )}
+                    {/* Info icon with tooltip */}
+                    <Tooltip title="This is your remaining account balance. It reflects the total funds you have available for trading across all your models. If this reaches zero, you may need to delete some models.">
+                        <IconButton size="small">
+                            <InfoOutlined fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
+            </Box>
             {/* Dialog for Model Uploader */}
             <Dialog
                 open={openDialog}
