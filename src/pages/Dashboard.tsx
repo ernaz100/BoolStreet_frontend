@@ -1,326 +1,371 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Box, Container, Typography, Paper, Card, CardContent, CircularProgress, Alert, Button, Dialog, Tooltip, IconButton } from '@mui/material';
-import { TrendingUp, AccountBalance, Timeline, Assessment, AddCircle, InfoOutlined } from '@mui/icons-material';
-import ModelUploader from '../components/ModelUploader';
+import {
+    Box,
+    Container,
+    Typography,
+    Card,
+    CardContent,
+    Button,
+    CircularProgress,
+    Alert,
+} from '@mui/material';
+import {
+    VpnKey,
+    TrendingUp,
+    ArrowForward,
+    AutoGraph,
+} from '@mui/icons-material';
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    Legend,
+    ResponsiveContainer,
+} from 'recharts';
+import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
-// Utility function to get JWT token from localStorage (adjust if you use a different auth flow)
+// Utility function to get JWT token from localStorage
 const getToken = () => localStorage.getItem('token');
 
-const Dashboard: React.FC = () => {
-    // State for metrics and predictions
-    const [metrics, setMetrics] = useState<any>(null);
-    const [predictions, setPredictions] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [isEmpty, setIsEmpty] = useState(false);
-    const [openDialog, setOpenDialog] = useState(false);
-    // State for user balance
-    const [userBalance, setUserBalance] = useState<number | null>(null);
-    const [balanceLoading, setBalanceLoading] = useState(true);
-    const [balanceError, setBalanceError] = useState<string | null>(null);
+interface BrokerConnection {
+    id: number;
+    exchange: string;
+    api_key: string;
+    api_secret: string;
+    is_connected: boolean;
+    connection_status: 'connected' | 'disconnected' | 'error';
+    created_at: string;
+    last_verified?: string;
+}
 
-    // Auth and navigation hooks for handling unauthorized
+interface Trader {
+    id: number;
+    name: string;
+    active: boolean;
+    created_at: string;
+    balance: number;
+    tickers: string;
+}
+
+interface PerformanceData {
+    date: string;
+    balance: number;
+    profit: number;
+}
+
+const Dashboard: React.FC = () => {
     const { logout } = useAuth();
     const navigate = useNavigate();
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [brokerConnections, setBrokerConnections] = useState<BrokerConnection[]>([]);
+    const [traders, setTraders] = useState<Trader[]>([]);
+    const [performanceData, setPerformanceData] = useState<PerformanceData[]>([]);
 
-    // Function to handle dialog open/close
-    const handleDialogOpen = () => setOpenDialog(true);
-    const handleDialogClose = () => setOpenDialog(false);
-
-    // Function to handle successful model upload
-    const handleUploadSuccess = () => {
-        handleDialogClose();
-        // Refresh dashboard data
-        fetchData();
-    };
-
-    // Function to fetch dashboard data
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        setError(null);
+    // Fetch broker connections
+    const fetchBrokerConnections = useCallback(async () => {
         try {
-            const token = getToken();
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-            // Fetch stats
-            const statsRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/dashboard/stats`, { headers });
-            if (statsRes.status === 401) {
-                logout();
-                navigate('/');
-                return;
-            }
-            if (!statsRes.ok) throw new Error('Failed to fetch dashboard stats');
-            const stats = await statsRes.json();
-
-            // Fetch predictions
-            const predRes = await fetch(`${process.env.REACT_APP_BACKEND_URL}/dashboard/predictions`, { headers });
-            if (predRes.status === 401) {
-                logout();
-                navigate('/');
-                return;
-            }
-            if (!predRes.ok) throw new Error('Failed to fetch predictions');
-            const predData = await predRes.json();
-
-            // Check if user has any data
-            const hasData = stats.total_scripts > 0;
-            setIsEmpty(!hasData);
-
-            // Set state
-            setMetrics({
-                totalModels: stats.total_scripts || 0,
-                activeModels: stats.active_scripts || 0,
-                netProfit: stats.net_profit || 0,
-                totalValue: stats.total_balance || 0
+            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/brokers/connections`, {
+                headers: {
+                    Authorization: `Bearer ${getToken()}`,
+                },
             });
-            setPredictions(predData.predictions || []);
+            setBrokerConnections(response.data.connections || []);
         } catch (err: any) {
-            setError(err.message || 'An error occurred');
-        } finally {
-            setLoading(false);
-        }
-    }, [logout, navigate]);
-
-    // Fetch user balance
-    const fetchBalance = useCallback(async () => {
-        setBalanceLoading(true);
-        setBalanceError(null);
-        try {
-            const token = getToken();
-            const headers = {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            };
-            const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/auth/balance`, { headers });
-            if (res.status === 401) {
+            if (err.response?.status === 401) {
                 logout();
                 navigate('/');
                 return;
             }
-            if (!res.ok) throw new Error('Failed to fetch balance');
-            const data = await res.json();
-            setUserBalance(data.balance);
-        } catch (err: any) {
-            setBalanceError(err.message || 'An error occurred');
-        } finally {
-            setBalanceLoading(false);
+            // Don't set error for broker fetch failure, just use empty array
+            setBrokerConnections([]);
         }
     }, [logout, navigate]);
 
-    // Fetch dashboard stats and predictions on mount
+    // Fetch performance data (mock for now)
+    const fetchPerformanceData = useCallback(async (activeTraders: Trader[]) => {
+        try {
+            // TODO: Replace with actual API call
+            // const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/dashboard/performance`, {
+            //     headers: {
+            //         Authorization: `Bearer ${getToken()}`,
+            //     },
+            // });
+            // setPerformanceData(response.data.performance || []);
+
+            // Mock performance data for demonstration
+            const mockData: PerformanceData[] = [];
+            const today = new Date();
+            const initialBalance = activeTraders.reduce((sum, t) => sum + t.balance, 0);
+
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(date.getDate() - i);
+                const variation = (Math.random() - 0.5) * 2000; // Random variation
+                const balance = initialBalance + (6 - i) * 100 + variation;
+                mockData.push({
+                    date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+                    balance: Math.max(0, balance),
+                    profit: balance - initialBalance,
+                });
+            }
+            setPerformanceData(mockData);
+        } catch (err: any) {
+            console.error('Failed to fetch performance data:', err);
+            setPerformanceData([]);
+        }
+    }, []);
+
+    // Fetch traders
+    const fetchTraders = useCallback(async () => {
+        try {
+            const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/models/list`, {
+                headers: {
+                    Authorization: `Bearer ${getToken()}`,
+                },
+            });
+            const fetchedTraders = response.data.models || [];
+            setTraders(fetchedTraders);
+
+            // Filter active traders
+            const activeTraders = fetchedTraders.filter((t: Trader) => t.active);
+
+            // If there are active traders, fetch performance data
+            if (activeTraders.length > 0) {
+                fetchPerformanceData(activeTraders);
+            } else {
+                setPerformanceData([]);
+            }
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
+            setTraders([]);
+        }
+    }, [logout, navigate, fetchPerformanceData]);
+
+    // Fetch all data on mount
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        const fetchAllData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                await Promise.all([fetchBrokerConnections(), fetchTraders()]);
+            } catch (err: any) {
+                setError('Failed to load dashboard data');
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    // Fetch balance on mount
-    useEffect(() => {
-        fetchBalance();
-    }, [fetchBalance]);
+        fetchAllData();
+    }, [fetchBrokerConnections, fetchTraders]);
 
-    // Metric cards config
-    const metricCards = metrics ? [
-        {
-            title: 'Total Models',
-            value: metrics.totalModels,
-            icon: <Assessment sx={{ fontSize: 40, color: 'primary.main' }} />
-        },
-        {
-            title: 'Active Models',
-            value: metrics.activeModels,
-            icon: <Timeline sx={{ fontSize: 40, color: 'primary.main' }} />
-        },
-        {
-            title: 'Net Profit',
-            value: metrics.netProfit ? `$${metrics.netProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00',
-            icon: <TrendingUp sx={{ fontSize: 40, color: 'primary.main' }} />,
-            valueColor: metrics.netProfit < 0 ? 'error.main' : 'text.primary'
-        },
-        {
-            title: 'Total Value',
-            value: metrics.totalValue ? `$${metrics.totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : '$0.00',
-            icon: <AccountBalance sx={{ fontSize: 40, color: 'primary.main' }} />
-        },
-    ] : [];
-
-    // Empty state component
-    const EmptyState = () => (
-        <Box sx={{
-            textAlign: 'center',
-            py: 8,
-            px: 2,
-            bgcolor: 'background.paper',
-            borderRadius: 2,
-            border: '1px solid',
-            borderColor: 'divider',
-        }}>
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: '600px', mx: 'auto' }}>
-                You either haven't uploaded any trading models yet or your models have not been trading yet. <br />
-                Upload your first model to start making predictions and tracking your performance.
-            </Typography>
-            <Button
-                variant="contained"
-                size="large"
-                startIcon={<AddCircle />}
-                onClick={handleDialogOpen}
-                sx={{
-                    borderRadius: 2,
-                    px: 4,
-                    py: 1.5
-                }}
-            >
-                Upload Your First Model
-            </Button>
-        </Box>
-    );
-
-    return (
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-            {/* Balance Overview - Top Right */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: 'background.paper', borderRadius: 2, px: 3, py: 1, border: '1px solid', borderColor: 'divider', boxShadow: 1 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mr: 1 }}>
-                        Remaining Balance:
-                    </Typography>
-                    {balanceLoading ? (
-                        <CircularProgress size={18} sx={{ mx: 1 }} />
-                    ) : balanceError ? (
-                        <Typography color="error" variant="body2">Error</Typography>
-                    ) : (
-                        <Typography variant="h6" sx={{ fontWeight: 700, color: userBalance !== null && userBalance < 0 ? 'error.main' : 'success.main', mr: 1 }}>
-                            {userBalance !== null ? userBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) : 'N/A'}
-                        </Typography>
-                    )}
-                    {/* Info icon with tooltip */}
-                    <Tooltip title="This is your remaining account balance. It reflects the total funds you have available for trading across all your models. If this reaches zero, you may need to delete some models.">
-                        <IconButton size="small">
-                            <InfoOutlined fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+    if (loading) {
+        return (
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+                    <CircularProgress />
                 </Box>
-            </Box>
-            {/* Dialog for Model Uploader */}
-            <Dialog
-                open={openDialog}
-                onClose={handleDialogClose}
-                maxWidth="sm"
-                fullWidth
-                PaperProps={{
-                    sx: {
-                        minHeight: '60vh',
-                        maxHeight: '80vh'
-                    }
-                }}
-            >
-                <ModelUploader onSuccess={handleUploadSuccess} />
-            </Dialog>
+            </Container>
+        );
+    }
 
-            <Typography variant="h4" sx={{ mb: 4, fontWeight: 700 }}>
+    if (error) {
+        return (
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Alert severity="error">{error}</Alert>
+            </Container>
+        );
+    }
+
+    const hasBrokerConnections = brokerConnections.length > 0;
+    const activeTraders = traders.filter((t) => t.active);
+    const hasActiveTraders = activeTraders.length > 0;
+
+    // State 1: No API keys
+    if (!hasBrokerConnections) {
+        return (
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, mb: 2, color: 'black' }}>
+                    Dashboard
+                </Typography>
+                <Card
+                    sx={{
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        textAlign: 'center',
+                        py: 6,
+                        px: 4,
+                    }}
+                >
+                    <VpnKey sx={{ fontSize: 64, color: 'primary.main', mb: 3 }} />
+                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 2, color: 'black' }}>
+                        Connect Your Exchange Account
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
+                        To start trading, you'll need to connect your crypto exchange account using API keys.
+                        Add your broker connection to get started.
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        startIcon={<VpnKey />}
+                        endIcon={<ArrowForward />}
+                        onClick={() => navigate('/brokers')}
+                        sx={{
+                            px: 4,
+                            py: 1.5,
+                            fontSize: '1.1rem',
+                            borderRadius: 2,
+                        }}
+                    >
+                        Add API Keys
+                    </Button>
+                </Card>
+            </Container>
+        );
+    }
+
+    // State 2: Has API keys but no active traders
+    if (hasBrokerConnections && !hasActiveTraders) {
+        return (
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Typography variant="h4" sx={{ fontWeight: 700, mb: 2, color: 'black' }}>
+                    Dashboard
+                </Typography>
+                <Card
+                    sx={{
+                        borderRadius: 2,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        textAlign: 'center',
+                        py: 6,
+                        px: 4,
+                    }}
+                >
+                    <AutoGraph sx={{ fontSize: 64, color: 'primary.main', mb: 3 }} />
+                    <Typography variant="h5" sx={{ fontWeight: 600, mb: 2, color: 'black' }}>
+                        Create Your First Trading Agent
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
+                        You've connected your exchange account! Now create and activate your first trading agent
+                        to start trading automatically on the crypto market.
+                    </Typography>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        startIcon={<TrendingUp />}
+                        endIcon={<ArrowForward />}
+                        onClick={() => navigate('/traders')}
+                        sx={{
+                            px: 4,
+                            py: 1.5,
+                            fontSize: '1.1rem',
+                            borderRadius: 2,
+                        }}
+                    >
+                        Create Trading Agent
+                    </Button>
+                </Card>
+            </Container>
+        );
+    }
+
+    // State 3: Has active traders - show performance chart
+    return (
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            <Typography variant="h4" sx={{ fontWeight: 700, mb: 4, color: 'black' }}>
                 Dashboard
             </Typography>
 
-            {/* Loading and error states */}
-            {loading && <Box sx={{ display: 'flex', justifyContent: 'center', my: 6 }}><CircularProgress /></Box>}
-            {error && <Alert severity="error" sx={{ mb: 4 }}>{error}</Alert>}
-
-            {/* Empty state */}
-            {!loading && !error && isEmpty && <EmptyState />}
-
-            {/* Metrics Grid */}
-            {!loading && !error && !isEmpty && (
-                <Box sx={{
-                    display: 'grid',
-                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' },
-                    gap: 3,
-                    mb: 4
-                }}>
-                    {metricCards.map((metric) => (
-                        <Paper
-                            key={metric.title}
-                            elevation={0}
-                            sx={{
-                                p: 3,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                height: 140,
-                                bgcolor: 'background.paper',
-                                borderRadius: 2,
-                                border: '1px solid',
-                                borderColor: 'divider',
-                            }}
-                        >
-                            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                                {metric.icon}
-                                <Typography variant="h6" sx={{ ml: 2, color: 'text.secondary' }}>
-                                    {metric.title}
-                                </Typography>
-                            </Box>
-                            <Typography variant="h4" sx={{ fontWeight: 700, color: metric.valueColor }}>
-                                {metric.value}
-                            </Typography>
-                        </Paper>
-                    ))}
-                </Box>
-            )}
-
-            {/* Recent Predictions */}
-            {!loading && !error && !isEmpty && (
-                <>
-                    <Typography variant="h5" sx={{ mb: 3, fontWeight: 600 }}>
-                        Recent Predictions
+            {/* Performance Chart */}
+            <Card sx={{ mb: 4, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ p: 4 }}>
+                    <Typography variant="h6" sx={{ fontWeight: 600, mb: 3, color: 'black' }}>
+                        Trading Performance
                     </Typography>
-                    <Box sx={{
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                        gap: 3
-                    }}>
-                        {predictions.length === 0 && (
-                            <Typography color="text.secondary">No recent predictions found.</Typography>
-                        )}
-                        {predictions.map((prediction, idx) => (
-                            <Card key={idx} elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
-                                <CardContent>
-                                    <Typography variant="h6" sx={{ mb: 1 }}>
-                                        {prediction.script_name || 'Model'}
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography color="text.secondary">Prediction</Typography>
-                                        <Typography
-                                            sx={{
-                                                color: prediction.prediction === 'buy' ? 'success.main' : prediction.prediction === 'sell' ? 'error.main' : 'text.primary',
-                                                fontWeight: 600,
-                                            }}
-                                        >
-                                            {prediction.prediction}
-                                        </Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                                        <Typography color="text.secondary">Confidence</Typography>
-                                        <Typography sx={{ fontWeight: 600 }}>{prediction.confidence ? `${(prediction.confidence * 100).toFixed(0)}%` : 'N/A'}</Typography>
-                                    </Box>
-                                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                                        <Typography color="text.secondary">Date</Typography>
-                                        <Typography>{prediction.timestamp ? new Date(prediction.timestamp).toLocaleDateString() : ''}</Typography>
-                                    </Box>
-                                    {typeof prediction.profit_loss === 'number' && (
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                                            <Typography color="text.secondary">Profit/Loss</Typography>
-                                            <Typography sx={{ fontWeight: 600 }} color={prediction.profit_loss >= 0 ? 'success.main' : 'error.main'}>
-                                                {prediction.profit_loss >= 0 ? '+' : ''}${prediction.profit_loss.toFixed(2)}
-                                            </Typography>
-                                        </Box>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </Box>
-                </>
-            )}
+                    {performanceData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={400}>
+                            <LineChart data={performanceData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="date" />
+                                <YAxis yAxisId="left" />
+                                <YAxis yAxisId="right" orientation="right" />
+                                <Tooltip
+                                    formatter={(value: number, name: string) => {
+                                        if (name === 'balance') {
+                                            return [`$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, 'Balance'];
+                                        }
+                                        return [`$${value.toLocaleString(undefined, { maximumFractionDigits: 2 })}`, 'Profit/Loss'];
+                                    }}
+                                />
+                                <Legend />
+                                <Line
+                                    yAxisId="left"
+                                    type="monotone"
+                                    dataKey="balance"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    name="Balance"
+                                    dot={{ r: 4 }}
+                                    activeDot={{ r: 6 }}
+                                />
+                                <Line
+                                    yAxisId="right"
+                                    type="monotone"
+                                    dataKey="profit"
+                                    stroke="#059669"
+                                    strokeWidth={2}
+                                    name="Profit/Loss"
+                                    strokeDasharray="5 5"
+                                    dot={{ r: 4 }}
+                                    activeDot={{ r: 6 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 400 }}>
+                            <Typography color="text.secondary">Loading performance data...</Typography>
+                        </Box>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Active Traders Summary */}
+            <Box
+                sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: `repeat(${Math.min(activeTraders.length, 4)}, 1fr)` },
+                    gap: 3,
+                }}
+            >
+                {activeTraders.map((trader) => (
+                    <Card key={trader.id} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
+                        <CardContent>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
+                                {trader.name}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                                {trader.tickers ? trader.tickers.split(',').slice(0, 2).join(', ') : 'No tickers'}
+                            </Typography>
+                            <Typography variant="h5" sx={{ fontWeight: 700, color: 'primary.main' }}>
+                                ${trader.balance.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                            </Typography>
+                        </CardContent>
+                    </Card>
+                ))}
+            </Box>
         </Container>
     );
 };
 
-export default Dashboard; 
+export default Dashboard;

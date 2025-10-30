@@ -132,7 +132,7 @@ const ModelUploader: React.FC<ModelUploaderProps> = ({ onSuccess }) => {
                     if (onSuccess) {
                         onSuccess();
                     } else {
-                        navigate('/my-models');
+                        navigate('/traders');
                     }
                 }, 2000);
             } else {

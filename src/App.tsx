@@ -1,19 +1,21 @@
 import React from 'react';
-import { Container, Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
+import { Box, CssBaseline, ThemeProvider, createTheme } from '@mui/material';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import ModelUploader from './components/ModelUploader';
 import StockChart from './components/StockChart';
 import Navbar from './components/Navbar';
 import Welcome from './components/Welcome';
 import HowItWorks from './components/HowItWorks';
+import Pricing from './components/Pricing';
+import FAQ from './components/FAQ';
 import Footer from './components/Footer';
 import Dashboard from './pages/Dashboard';
-import MyModels from './pages/MyModels';
+import Traders from './pages/Traders';
 import MarketData from './pages/MarketData';
 import Leaderboard from './pages/Leaderboard';
-import Pricing from './pages/Pricing';
+import Brokers from './pages/Brokers';
+import ManageAccount from './pages/ManageAccount';
 import SignUpDialog from './components/SignUpDialog';
 
 // Create a theme instance
@@ -69,6 +71,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
     return isAuthenticated ? <>{children}</> : <SignUpDialog />;
 };
 
+
 const AppContent: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
@@ -89,16 +92,14 @@ const AppContent: React.FC = () => {
                                         <StockChart />
                                     </Welcome>
                                     <HowItWorks />
-                                    <Box sx={{ py: 6 }}>
-                                        <Container maxWidth="lg">
-                                            <ModelUploader />
-                                        </Container>
-                                    </Box>
+                                    <Pricing />
+                                    <FAQ />
                                 </>
                             } />
-                            <Route path="/pricing" element={<Pricing />} />
+                            <Route path="/brokers" element={<ProtectedRoute> <Brokers /> </ProtectedRoute>} />
+                            <Route path="/manage-account" element={<ProtectedRoute> <ManageAccount /> </ProtectedRoute>} />
                             <Route path="/dashboard" element={<ProtectedRoute> <Dashboard /> </ProtectedRoute>} />
-                            <Route path="/my-models" element={<ProtectedRoute> <MyModels /> </ProtectedRoute>} />
+                            <Route path="/traders" element={<ProtectedRoute> <Traders /> </ProtectedRoute>} />
                             <Route path="/market-data" element={<ProtectedRoute> <MarketData /> </ProtectedRoute>} />
                             <Route path="/leaderboard" element={<ProtectedRoute> <Leaderboard /> </ProtectedRoute>} />
                         </Routes>

@@ -42,7 +42,7 @@ const Welcome: React.FC<WelcomeProps> = ({ children }) => {
                     color="grey.800"
                     sx={{ mb: 4, fontWeight: 400, maxWidth: 600 }}
                 >
-                    Test your trading algorithms without financial risk. Upload your ML models and compete with others using fictive currency on real market data. Track performance, refine strategies, and climb the leaderboard.
+                    A playground for testing how large language models perform as autonomous crypto traders. Create and customize your AI trading agents — pick the model, choose coins, set trading frequency, funding, and tweak the prompt. Run agents live and compete on the leaderboard.
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                     <Button

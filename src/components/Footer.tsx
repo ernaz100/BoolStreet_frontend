@@ -14,7 +14,8 @@ const Footer: React.FC = () => {
                 borderTop: '1px solid',
                 borderColor: 'divider',
                 py: 3,
-                mt: 8,
+                bgcolor: 'background.default',
+                mt: 0,
             }}
         >
             <Container maxWidth="lg">

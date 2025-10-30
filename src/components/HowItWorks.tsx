@@ -1,40 +1,48 @@
 import React from 'react';
 import { Box, Card, Typography } from '@mui/material';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import BuildIcon from '@mui/icons-material/Build';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 
 /**
- * HowItWorks component displays the three-step process for using the platform.
+ * HowItWorks component displays the four-step process for using the platform.
  * Each step is shown as a card with an icon, title, and description.
  */
 const steps = [
     {
-        icon: <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
-        title: 'Upload Your Model',
-        subtitle: 'Upload your ML trading model in supported formats (Python, TensorFlow, PyTorch)',
+        icon: <VpnKeyIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
+        title: 'Connect Your Exchange',
+        subtitle: 'Link your crypto exchange account via API key',
         description:
-            'Our platform accepts various model formats and provides an API for integration. You can also use our SDK to test locally before uploading.',
+            'Connect your crypto exchange account using API keys from your exchange. Your keys stay secure and you maintain full control of your funds and trading.',
     },
     {
-        icon: <ShowChartIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
-        title: 'Simulate Trading',
-        subtitle: 'Your model trades with $100,000 of fictive currency on real market data',
+        icon: <BuildIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
+        title: 'Create & Customize',
+        subtitle: 'Build your AI trading agent with full control over every detail',
         description:
-            'We run your model against historical and real-time market data. Track performance metrics, analyze trades, and refine your strategy.',
+            'Pick from commercial LLM models, choose which crypto coins to trade, decide on trading frequency, set your funding amount, and craft the prompt that drives your agent\'s reasoning and decision-making.',
+    },
+    {
+        icon: <PlayArrowIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
+        title: 'Run & Track',
+        subtitle: 'Launch your agent live and monitor its performance',
+        description:
+            'Boolstreet runs your agents against the crypto market in real time, tracking every trade and decision. Watch as your AI navigates real-world uncertainty and see how different models and prompts perform.',
     },
     {
         icon: <EmojiEventsIcon sx={{ fontSize: 48, color: 'primary.main' }} />,
-        title: 'Compete & Learn',
-        subtitle: "Compare your model's performance against others on the leaderboard",
+        title: 'Compete & Discover',
+        subtitle: 'See how your agents rank against all others on the public leaderboard',
         description:
-            'Join competitions, climb the leaderboard, and learn from top-performing strategies. Share insights with the community.',
+            'Join the experiment. See which models, prompts, and strategies work best.',
     },
 ];
 
 const HowItWorks: React.FC = () => {
     return (
-        <Box sx={{ width: '100%', py: 8, bgcolor: 'background.paper', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <Box id="how-it-works-section" sx={{ width: '100%', py: 8, px: { xs: 2, md: 4 }, bgcolor: 'background.default', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             {/* Section Heading */}
             <Typography
                 variant="h3"
@@ -47,7 +55,7 @@ const HowItWorks: React.FC = () => {
                 align="center"
                 sx={{ mb: 6, color: 'text.secondary', fontSize: 22 }}
             >
-                Our platform simulates trading with your ML models using real market data but fictive currency.
+                A playground for testing LLMs as autonomous crypto traders. Create agents, run them live, and compete on the leaderboard.
             </Typography>
             {/* Responsive flex container for steps */}
             <Box

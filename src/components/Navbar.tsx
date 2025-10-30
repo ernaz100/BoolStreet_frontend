@@ -9,22 +9,25 @@ import {
     Avatar,
     Menu,
     MenuItem,
+    Divider,
 } from '@mui/material';
-import { AutoGraph, Logout } from '@mui/icons-material';
+import { AutoGraph, Logout, VpnKey, AccountCircle } from '@mui/icons-material';
 import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../contexts/AuthContext';
 
 // Define navigation links for authenticated users
-const authenticatedNavLinks = [
+const authenticatedNavLinks: Array<{ label: string; path: string; isScroll?: boolean; sectionId?: string }> = [
     { label: 'Dashboard', path: '/dashboard' },
-    { label: 'My Models', path: '/my-models' },
+    { label: 'Traders', path: '/traders' },
     { label: 'Market Data', path: '/market-data' },
     { label: 'Leaderboard', path: '/leaderboard' },
 ];
 
 // Define navigation links for non-authenticated users
-const nonAuthenticatedNavLinks = [
-    { label: 'Pricing', path: '/pricing' },
+const nonAuthenticatedNavLinks: Array<{ label: string; path: string; isScroll?: boolean; sectionId?: string }> = [
+    { label: 'How It Works', path: '/', isScroll: true, sectionId: 'how-it-works-section' },
+    { label: 'Pricing', path: '/', isScroll: true, sectionId: 'pricing-section' },
+    { label: 'FAQ', path: '/', isScroll: true, sectionId: 'faq-section' },
 ];
 
 const Navbar: React.FC = () => {
@@ -50,6 +53,8 @@ const Navbar: React.FC = () => {
     const handleGoogleSuccess = async (credentialResponse: any) => {
         try {
             await login(credentialResponse.credential);
+            // Redirect to brokers page after successful login
+            navigate('/brokers');
         } catch (error) {
             console.error('Login failed:', error);
         }
@@ -57,6 +62,30 @@ const Navbar: React.FC = () => {
 
     // Determine which navigation links to show based on authentication status
     const navLinks = user ? authenticatedNavLinks : nonAuthenticatedNavLinks;
+
+    const handleNavClick = (link: { label: string; path: string; isScroll?: boolean; sectionId?: string }) => {
+        if (link.isScroll && link.sectionId) {
+            const sectionId = link.sectionId; // Store in local variable for TypeScript
+            if (location.pathname === '/') {
+                // Scroll to the section on the landing page
+                const element = document.getElementById(sectionId);
+                if (element) {
+                    element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } else {
+                // Navigate to landing page, then scroll after a brief delay
+                navigate('/');
+                setTimeout(() => {
+                    const element = document.getElementById(sectionId);
+                    if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 100);
+            }
+        } else {
+            navigate(link.path);
+        }
+    };
 
     return (
         <AppBar
@@ -85,7 +114,7 @@ const Navbar: React.FC = () => {
                             mr: 4,
                             cursor: 'pointer'
                         }}
-                        onClick={() => navigate('/')}
+                        onClick={() => navigate(user ? '/dashboard' : '/')}
                     >
                         <AutoGraph sx={{ color: 'black', fontSize: 28 }} />
                         <Typography
@@ -101,7 +130,7 @@ const Navbar: React.FC = () => {
                         {navLinks.map((link) => (
                             <Typography
                                 key={link.label}
-                                onClick={() => navigate(link.path)}
+                                onClick={() => handleNavClick(link)}
                                 sx={{
                                     fontWeight: location.pathname === link.path ? 700 : 500,
                                     color: location.pathname === link.path ? 'black' : 'grey.600',
@@ -160,6 +189,27 @@ const Navbar: React.FC = () => {
                                     transformOrigin={{ horizontal: 'right', vertical: 'top' }}
                                     anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
                                 >
+                                    <MenuItem
+                                        onClick={() => {
+                                            navigate('/brokers');
+                                            handleMenuClose();
+                                        }}
+                                        sx={{ gap: 1 }}
+                                    >
+                                        <VpnKey fontSize="small" />
+                                        Brokers
+                                    </MenuItem>
+                                    <MenuItem
+                                        onClick={() => {
+                                            navigate('/manage-account');
+                                            handleMenuClose();
+                                        }}
+                                        sx={{ gap: 1 }}
+                                    >
+                                        <AccountCircle fontSize="small" />
+                                        Manage Account
+                                    </MenuItem>
+                                    <Divider />
                                     <MenuItem onClick={handleLogout} sx={{ gap: 1 }}>
                                         <Logout fontSize="small" />
                                         Logout
