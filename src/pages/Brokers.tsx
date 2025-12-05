@@ -12,6 +12,8 @@ import {
     Chip,
     IconButton,
     Tooltip,
+    FormControlLabel,
+    Checkbox,
 } from '@mui/material';
 import {
     VpnKey as VpnKeyIcon,
@@ -29,8 +31,10 @@ import { useNavigate } from 'react-router-dom';
 interface BrokerConnection {
     id: number;
     exchange: string;
-    api_key: string;
-    api_secret: string;
+    api_key?: string;
+    api_secret?: string;
+    main_wallet_address?: string;
+    is_testnet?: boolean;
     is_connected: boolean;
     connection_status: 'connected' | 'disconnected' | 'error';
     created_at: string;
@@ -46,8 +50,8 @@ interface ExchangeConfig {
 
 const EXCHANGES: ExchangeConfig[] = [
     {
-        name: 'binance',
-        displayName: 'Binance',
+        name: 'hyperliquid',
+        displayName: 'Hyperliquid',
         supported: true,
     },
 ];
@@ -59,13 +63,14 @@ const Brokers: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [connections, setConnections] = useState<BrokerConnection[]>([]);
-    const [showApiKey, setShowApiKey] = useState<{ [key: number]: boolean }>({});
-    const [showApiSecret, setShowApiSecret] = useState<{ [key: number]: boolean }>({});
 
     // Form state for adding new connection
-    const [selectedExchange, setSelectedExchange] = useState<string>('binance');
-    const [apiKey, setApiKey] = useState('');
-    const [apiSecret, setApiSecret] = useState('');
+    const [selectedExchange, setSelectedExchange] = useState<string>('hyperliquid');
+    // Hyperliquid-specific fields
+    const [mainWalletAddress, setMainWalletAddress] = useState('');
+    const [agentWalletPrivateKey, setAgentWalletPrivateKey] = useState('');
+    const [isTestnet, setIsTestnet] = useState(false);
+    const [showAgentKey, setShowAgentKey] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const [testing, setTesting] = useState<{ [key: number]: boolean }>({});
 
@@ -98,9 +103,17 @@ const Brokers: React.FC = () => {
 
     // Handle adding a new broker connection
     const handleAddConnection = async () => {
-        if (!apiKey.trim() || !apiSecret.trim()) {
-            setError('Please provide both API Key and API Secret');
-            return;
+        // Validate based on exchange type
+        if (selectedExchange === 'hyperliquid') {
+            if (!mainWalletAddress.trim() || !agentWalletPrivateKey.trim()) {
+                setError('Please provide both Main Wallet Address and Agent Wallet Private Key');
+                return;
+            }
+            // Validate wallet address format
+            if (!mainWalletAddress.startsWith('0x') || mainWalletAddress.length !== 42) {
+                setError('Invalid wallet address format. Must be a valid Ethereum address (0x followed by 40 hex characters)');
+                return;
+            }
         }
 
         setSubmitting(true);
@@ -108,13 +121,19 @@ const Brokers: React.FC = () => {
         setSuccess(null);
 
         try {
+            const requestData: any = {
+                exchange: selectedExchange,
+            };
+
+            if (selectedExchange === 'hyperliquid') {
+                requestData.main_wallet_address = mainWalletAddress.trim();
+                requestData.agent_wallet_private_key = agentWalletPrivateKey.trim();
+                requestData.is_testnet = isTestnet;
+            }
+
             const response = await axios.post(
                 `${process.env.REACT_APP_BACKEND_URL}/brokers/connections`,
-                {
-                    exchange: selectedExchange,
-                    api_key: apiKey.trim(),
-                    api_secret: apiSecret.trim(),
-                },
+                requestData,
                 {
                     headers: {
                         Authorization: `Bearer ${localStorage.getItem('token')}`,
@@ -124,8 +143,10 @@ const Brokers: React.FC = () => {
             );
             console.log(response.data);
             setSuccess('Broker connection added successfully!');
-            setApiKey('');
-            setApiSecret('');
+            // Reset form fields
+            setMainWalletAddress('');
+            setAgentWalletPrivateKey('');
+            setIsTestnet(false);
             await fetchConnections();
         } catch (err: any) {
             if (err.response?.status === 401) {
@@ -189,14 +210,6 @@ const Brokers: React.FC = () => {
                 setError(err.response?.data?.error || 'Failed to delete connection');
             }
         }
-    };
-
-    const toggleShowApiKey = (id: number) => {
-        setShowApiKey({ ...showApiKey, [id]: !showApiKey[id] });
-    };
-
-    const toggleShowApiSecret = (id: number) => {
-        setShowApiSecret({ ...showApiSecret, [id]: !showApiSecret[id] });
     };
 
     const getStatusColor = (status: string) => {
@@ -265,84 +278,96 @@ const Brokers: React.FC = () => {
                                 ))}
                             </Box>
                         </Box>
-                        <Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                                    API Keys
-                                </Typography>
-                                <Tooltip
-                                    title={
-                                        <Box sx={{ p: 0.5 }}>
-                                            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                                                How to get your Binance API keys:
-                                            </Typography>
-                                            <Box component="ol" sx={{ m: 0, pl: 2.5, fontSize: '0.875rem' }}>
-                                                <Box component="li" sx={{ mb: 0.5 }}>
-                                                    Log in to your Binance account
+                        {selectedExchange === 'hyperliquid' && (
+                            <Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                                        Hyperliquid Wallet Information
+                                    </Typography>
+                                    <Tooltip
+                                        title={
+                                            <Box sx={{ p: 0.5 }}>
+                                                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                                                    How to get your Hyperliquid credentials:
+                                                </Typography>
+                                                <Box component="ol" sx={{ m: 0, pl: 2.5, fontSize: '0.875rem' }}>
+                                                    <Box component="li" sx={{ mb: 0.5 }}>
+                                                        Visit Hyperliquid and log in with your wallet
+                                                    </Box>
+                                                    <Box component="li" sx={{ mb: 0.5 }}>
+                                                        Go to the API page (app.hyperliquid.xyz/API)
+                                                    </Box>
+                                                    <Box component="li" sx={{ mb: 0.5 }}>
+                                                        Click "Generate" to create an agent wallet
+                                                    </Box>
+                                                    <Box component="li" sx={{ mb: 0.5 }}>
+                                                        <strong>Copy the private key</strong> (64 hex characters, NOT the address!)
+                                                    </Box>
+                                                    <Box component="li" sx={{ mb: 0.5 }}>
+                                                        Authorize the agent wallet for trading
+                                                    </Box>
+                                                    <Box component="li">
+                                                        Use your <strong>main wallet address</strong> (the one you logged in with) below
+                                                    </Box>
                                                 </Box>
-                                                <Box component="li" sx={{ mb: 0.5 }}>
-                                                    Go to API Management (Account → API Management)
-                                                </Box>
-                                                <Box component="li" sx={{ mb: 0.5 }}>
-                                                    Click "Create API" and follow the verification steps
-                                                </Box>
-                                                <Box component="li" sx={{ mb: 0.5 }}>
-                                                    Enable "Enable Reading" and "Enable Spot & Margin Trading"
-                                                </Box>
-                                                <Box component="li" sx={{ mb: 0.5 }}>
-                                                    Copy your API Key and Secret Key
-                                                </Box>
-                                                <Box component="li">
-                                                    Important: Never enable withdrawals for security
-                                                </Box>
+                                                <Typography variant="body2" sx={{ mt: 1.5, fontStyle: 'italic', color: 'warning.light' }}>
+                                                    Note: The agent wallet is for trading only and cannot withdraw funds.
+                                                </Typography>
                                             </Box>
-                                        </Box>
+                                        }
+                                        arrow
+                                        placement="top"
+                                        sx={{ maxWidth: 400 }}
+                                    >
+                                        <IconButton size="small" sx={{ color: 'primary.main' }}>
+                                            <InfoIcon fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
+                                </Box>
+                                <TextField
+                                    label="Main Wallet Address (Your Wallet)"
+                                    value={mainWalletAddress}
+                                    onChange={(e) => setMainWalletAddress(e.target.value)}
+                                    fullWidth
+                                    placeholder="0x... (the wallet you log into Hyperliquid with)"
+                                    sx={{ mb: 3 }}
+                                    helperText="Your main wallet address that holds funds on Hyperliquid (NOT the API/agent wallet address)"
+                                />
+                                <TextField
+                                    label="Agent Wallet Private Key (from API page)"
+                                    type={showAgentKey ? 'text' : 'password'}
+                                    value={agentWalletPrivateKey}
+                                    onChange={(e) => setAgentWalletPrivateKey(e.target.value)}
+                                    fullWidth
+                                    placeholder="64 hex characters (e.g., a1b2c3d4...)"
+                                    sx={{ mb: 2 }}
+                                    helperText="The PRIVATE KEY from the API page (64 hex characters) — NOT an address! This is used for trade execution only."
+                                    InputProps={{
+                                        endAdornment: (
+                                            <IconButton onClick={() => setShowAgentKey(!showAgentKey)} edge="end">
+                                                {showAgentKey ? <VisibilityOff /> : <Visibility />}
+                                            </IconButton>
+                                        ),
+                                    }}
+                                />
+                                <FormControlLabel
+                                    control={
+                                        <Checkbox
+                                            checked={isTestnet}
+                                            onChange={(e) => setIsTestnet(e.target.checked)}
+                                        />
                                     }
-                                    arrow
-                                    placement="top"
-                                    sx={{ maxWidth: 400 }}
-                                >
-                                    <IconButton size="small" sx={{ color: 'primary.main' }}>
-                                        <InfoIcon fontSize="small" />
-                                    </IconButton>
-                                </Tooltip>
+                                    label="Use Testnet"
+                                />
                             </Box>
-                            <TextField
-                                label="API Key"
-                                type={showApiKey[0] ? 'text' : 'password'}
-                                value={apiKey}
-                                onChange={(e) => setApiKey(e.target.value)}
-                                fullWidth
-                                placeholder="Enter your API Key"
-                                sx={{ mb: 3 }}
-                                InputProps={{
-                                    endAdornment: (
-                                        <IconButton onClick={() => toggleShowApiKey(0)} edge="end">
-                                            {showApiKey[0] ? <VisibilityOff /> : <Visibility />}
-                                        </IconButton>
-                                    ),
-                                }}
-                            />
-                            <TextField
-                                label="API Secret"
-                                type={showApiSecret[0] ? 'text' : 'password'}
-                                value={apiSecret}
-                                onChange={(e) => setApiSecret(e.target.value)}
-                                fullWidth
-                                placeholder="Enter your API Secret"
-                                InputProps={{
-                                    endAdornment: (
-                                        <IconButton onClick={() => toggleShowApiSecret(0)} edge="end">
-                                            {showApiSecret[0] ? <VisibilityOff /> : <Visibility />}
-                                        </IconButton>
-                                    ),
-                                }}
-                            />
-                        </Box>
+                        )}
                         <Button
                             variant="contained"
                             onClick={handleAddConnection}
-                            disabled={submitting || !apiKey.trim() || !apiSecret.trim()}
+                            disabled={
+                                submitting ||
+                                (selectedExchange === 'hyperliquid' && (!mainWalletAddress.trim() || !agentWalletPrivateKey.trim()))
+                            }
                             startIcon={<VpnKeyIcon />}
                             sx={{ alignSelf: 'flex-start', px: 4 }}
                         >
@@ -413,46 +438,20 @@ const Brokers: React.FC = () => {
                                         </IconButton>
                                     </Box>
                                 </Box>
-                                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                                    <TextField
-                                        label="API Key"
-                                        type={showApiKey[connection.id] ? 'text' : 'password'}
-                                        value={connection.api_key}
-                                        InputProps={{
-                                            readOnly: true,
-                                            endAdornment: (
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => toggleShowApiKey(connection.id)}
-                                                    edge="end"
-                                                >
-                                                    {showApiKey[connection.id] ? <VisibilityOff /> : <Visibility />}
-                                                </IconButton>
-                                            ),
-                                        }}
-                                        size="small"
-                                        sx={{ flex: 1 }}
-                                    />
-                                    <TextField
-                                        label="API Secret"
-                                        type={showApiSecret[connection.id] ? 'text' : 'password'}
-                                        value={connection.api_secret}
-                                        InputProps={{
-                                            readOnly: true,
-                                            endAdornment: (
-                                                <IconButton
-                                                    size="small"
-                                                    onClick={() => toggleShowApiSecret(connection.id)}
-                                                    edge="end"
-                                                >
-                                                    {showApiSecret[connection.id] ? <VisibilityOff /> : <Visibility />}
-                                                </IconButton>
-                                            ),
-                                        }}
-                                        size="small"
-                                        sx={{ flex: 1 }}
-                                    />
-                                </Box>
+                                {connection.exchange === 'hyperliquid' && (
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+                                        <TextField
+                                            label="Main Wallet Address"
+                                            value={connection.main_wallet_address || ''}
+                                            InputProps={{ readOnly: true }}
+                                            size="small"
+                                            fullWidth
+                                        />
+                                        {connection.is_testnet && (
+                                            <Chip label="Testnet" color="info" size="small" sx={{ alignSelf: 'flex-start' }} />
+                                        )}
+                                    </Box>
+                                )}
                             </CardContent>
                         </Card>
                     ))}

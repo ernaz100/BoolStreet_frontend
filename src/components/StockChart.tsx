@@ -7,52 +7,69 @@ import {
     Box,
     Tabs,
     Tab,
+    CircularProgress,
 } from '@mui/material';
+import { CurrencyBitcoin } from '@mui/icons-material';
 import {
     LineChart,
     Line,
     XAxis,
     YAxis,
-    CartesianGrid,
     Tooltip,
     ResponsiveContainer,
 } from 'recharts';
-
-// Sample data generation function
-const generateStockData = (days: number, startPrice: number) => {
-    const data = [];
-    let price = startPrice;
-
-    for (let i = 0; i < days; i++) {
-        const change = (Math.random() - 0.5) * 5;
-        price = Math.max(price + change, 1);
-
-        data.push({
-            date: new Date(Date.now() - (days - i) * 24 * 60 * 60 * 1000).toLocaleDateString(),
-            price: price.toFixed(2),
-            volume: Math.floor(Math.random() * 10000000),
-        });
-    }
-
-    return data;
-};
+import axios from 'axios';
 
 
+
+interface PriceData {
+    date: string;
+    price: number;
+}
 
 const StockChart: React.FC = () => {
-    const [stockData, setStockData] = useState<any[]>([]);
+    const [stockData, setStockData] = useState<PriceData[]>([]);
     const [timeframe, setTimeframe] = useState(1); // 0: 1W, 1: 1M, 2: 3M
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const days = timeframe === 0 ? 7 : timeframe === 1 ? 30 : 90;
-        setStockData(generateStockData(days, 150));
+        const fetchBTCData = async () => {
+            try {
+                setLoading(true);
+                setError(null);
+
+                const timeframeMap = ['1W', '1M', '3M'];
+                const timeframeParam = timeframeMap[timeframe];
+
+                const response = await axios.get(
+                    `${process.env.REACT_APP_BACKEND_URL}/api/market/btc/history?timeframe=${timeframeParam}`
+                );
+
+                // Transform data to match chart format
+                const transformedData = response.data.map((item: PriceData) => ({
+                    date: item.date,
+                    price: parseFloat(item.price.toFixed(2)),
+                }));
+
+                setStockData(transformedData);
+            } catch (err) {
+                console.error('Error fetching BTC data:', err);
+                setError('Failed to load BTC price data');
+                setStockData([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchBTCData();
     }, [timeframe]);
 
     const handleTimeframeChange = (event: React.SyntheticEvent, newValue: number) => {
         setTimeframe(newValue);
     };
 
-    const getCurrentPrice = () => stockData[stockData.length - 1]?.price || '0.00';
+    const getCurrentPrice = () => stockData[stockData.length - 1]?.price || 0;
     const getPriceChange = () => {
         if (stockData.length <= 1) return { value: 0, percentage: 0 };
         const startPrice = Number(stockData[0].price);
@@ -69,11 +86,9 @@ const StockChart: React.FC = () => {
             <CardHeader
                 title={
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Box>
-                            <Typography variant="h6">AAPL Stock Price</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Historical price data
-                            </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <CurrencyBitcoin sx={{ fontSize: 28, color: '#f7931a' }} />
+                            <Typography variant="h6">BTC Historical Price</Typography>
                         </Box>
                         <Tabs value={timeframe} onChange={handleTimeframeChange}>
                             <Tab label="1W" />
@@ -84,60 +99,69 @@ const StockChart: React.FC = () => {
                 }
             />
             <CardContent>
-                <Box sx={{ height: 300 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <LineChart
-                            data={stockData}
-                            margin={{
-                                top: 5,
-                                right: 10,
-                                left: 10,
-                                bottom: 5,
-                            }}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" />
-                            <XAxis
-                                dataKey="date"
-                                tick={{ fontSize: 12 }}
-                                tickFormatter={(value) => {
-                                    const idx = stockData.findIndex((item) => item.date === value);
-                                    return idx % (timeframe === 0 ? 1 : timeframe === 1 ? 5 : 15) === 0 ? value : '';
+                {loading ? (
+                    <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <CircularProgress />
+                    </Box>
+                ) : error ? (
+                    <Box sx={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <Typography color="error">{error}</Typography>
+                    </Box>
+                ) : (
+                    <Box sx={{ height: 300 }}>
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart
+                                data={stockData}
+                                margin={{
+                                    top: 5,
+                                    right: 10,
+                                    left: 10,
+                                    bottom: 5,
                                 }}
-                            />
-                            <YAxis domain={['auto', 'auto']} />
-                            <Tooltip
-                                formatter={(value) => [`$${value}`, 'Price']}
-                                labelFormatter={(label) => `Date: ${label}`}
-                            />
-                            <Line
-                                type="monotone"
-                                dataKey="price"
-                                stroke="#10b981"
-                                strokeWidth={2}
-                                dot={false}
-                                activeDot={{ r: 6 }}
-                            />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </Box>
-                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
-                    <Typography variant="body2" color="text.secondary">
-                        Current: <Typography component="span" sx={{ fontWeight: 'medium' }}>${getCurrentPrice()}</Typography>
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Change:
-                        <Typography
-                            component="span"
-                            sx={{
-                                fontWeight: 'medium',
-                                color: priceChange.value >= 0 ? 'success.main' : 'error.main',
-                            }}
-                        >
-                            {priceChange.value >= 0 ? '+' : ''}
-                            {priceChange.value.toFixed(2)} ({priceChange.percentage.toFixed(2)}%)
+                            >
+                                <XAxis
+                                    dataKey="date"
+                                    tick={{ fontSize: 12 }}
+                                    interval={Math.floor(stockData.length / 6)}
+                                    minTickGap={30}
+                                />
+                                <YAxis domain={['auto', 'auto']} />
+                                <Tooltip
+                                    formatter={(value) => [`$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Price']}
+                                    labelFormatter={(label) => `Date: ${label}`}
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="price"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    dot={false}
+                                    activeDot={{ r: 6 }}
+                                />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </Box>
+                )}
+                {!loading && !error && stockData.length > 0 && (
+                    <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Current: <Typography component="span" sx={{ fontWeight: 'medium' }}>${Number(getCurrentPrice()).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Typography>
                         </Typography>
-                    </Typography>
-                </Box>
+                        <Typography variant="body2" color="text.secondary">
+                            Change:
+                            <Typography
+                                component="span"
+                                sx={{
+                                    fontWeight: 'medium',
+                                    color: priceChange.value >= 0 ? 'success.main' : 'error.main',
+                                }}
+                            >
+                                {priceChange.value >= 0 ? '+' : ''}
+                                ${priceChange.value.toFixed(2)} ({priceChange.percentage.toFixed(2)}%)
+                            </Typography>
+                        </Typography>
+                    </Box>
+                )}
             </CardContent>
         </Card>
     );

@@ -10,8 +10,13 @@ import {
     Dialog,
     CircularProgress,
     Alert,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    DialogContentText,
+    IconButton,
 } from '@mui/material';
-import { AddCircle, TrendingUp, Speed, Schedule } from '@mui/icons-material';
+import { AddCircle, TrendingUp, Speed, Schedule, Delete, Info } from '@mui/icons-material';
 import axios from 'axios';
 import TraderCreator from '../components/TraderCreator';
 import { useAuth } from '../contexts/AuthContext';
@@ -50,11 +55,34 @@ const Traders: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [openDialog, setOpenDialog] = useState(false);
+    const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [selectedTrader, setSelectedTrader] = useState<Trader | null>(null);
     const { logout } = useAuth();
     const navigate = useNavigate();
 
     const handleDialogOpen = () => setOpenDialog(true);
     const handleDialogClose = () => setOpenDialog(false);
+
+    const handleDetailsOpen = (trader: Trader) => {
+        setSelectedTrader(trader);
+        setOpenDetailsDialog(true);
+    };
+
+    const handleDetailsClose = () => {
+        setOpenDetailsDialog(false);
+        setSelectedTrader(null);
+    };
+
+    const handleDeleteOpen = (trader: Trader) => {
+        setSelectedTrader(trader);
+        setOpenDeleteDialog(true);
+    };
+
+    const handleDeleteClose = () => {
+        setOpenDeleteDialog(false);
+        setSelectedTrader(null);
+    };
 
     const handleActivateTrader = async (traderId: number, currentActive: boolean) => {
         try {
@@ -68,8 +96,40 @@ const Traders: React.FC = () => {
                 }
             );
             setTraders(response.data.models);
-        } catch (err) {
+            setError(null);
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
             setError('Failed to update trader status');
+        }
+    };
+
+    const handleDeleteTrader = async () => {
+        if (!selectedTrader) return;
+
+        try {
+            await axios.delete(
+                `${process.env.REACT_APP_BACKEND_URL}/models/${selectedTrader.id}`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                }
+            );
+            handleDeleteClose();
+            fetchTraders();
+            setError(null);
+        } catch (err: any) {
+            if (err.response?.status === 401) {
+                logout();
+                navigate('/');
+                return;
+            }
+            setError('Failed to delete trader');
+            handleDeleteClose();
         }
     };
 
@@ -139,6 +199,110 @@ const Traders: React.FC = () => {
                 }}
             >
                 <TraderCreator onSuccess={handleCreateSuccess} />
+            </Dialog>
+
+            {/* Dialog for Trader Details */}
+            <Dialog
+                open={openDetailsDialog}
+                onClose={handleDetailsClose}
+                maxWidth="sm"
+                fullWidth
+            >
+                {selectedTrader && (
+                    <>
+                        <DialogTitle>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="h6">{selectedTrader.name}</Typography>
+                                <Chip
+                                    label={selectedTrader.active ? 'Active' : 'Inactive'}
+                                    size="small"
+                                    color={selectedTrader.active ? 'success' : 'default'}
+                                />
+                            </Box>
+                        </DialogTitle>
+                        <DialogContent>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
+                                {selectedTrader.llm_model && (
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">LLM Model</Typography>
+                                        <Typography variant="body1">{selectedTrader.llm_model.toUpperCase()}</Typography>
+                                    </Box>
+                                )}
+                                <Box>
+                                    <Typography variant="subtitle2" color="text.secondary">Trading Coins</Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                        {parseCoins(selectedTrader.tickers).map((coin, idx) => (
+                                            <Chip key={idx} label={coin} size="small" color="info" />
+                                        ))}
+                                    </Box>
+                                </Box>
+                                {selectedTrader.trading_frequency && (
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Trading Frequency</Typography>
+                                        <Typography variant="body1">
+                                            {selectedTrader.trading_frequency === '1min' ? 'Every Minute' :
+                                                selectedTrader.trading_frequency === '5min' ? 'Every 5 Minutes' :
+                                                    selectedTrader.trading_frequency === '15min' ? 'Every 15 Minutes' :
+                                                        selectedTrader.trading_frequency === '30min' ? 'Every 30 Minutes' :
+                                                            selectedTrader.trading_frequency === '1hour' ? 'Every Hour' :
+                                                                selectedTrader.trading_frequency === '4hour' ? 'Every 4 Hours' :
+                                                                    selectedTrader.trading_frequency === '1day' ? 'Once Per Day' :
+                                                                        selectedTrader.trading_frequency}
+                                        </Typography>
+                                    </Box>
+                                )}
+                                <Box>
+                                    <Typography variant="subtitle2" color="text.secondary">Balance</Typography>
+                                    <Typography variant="body1">
+                                        {selectedTrader.balance.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
+                                    </Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="subtitle2" color="text.secondary">Created</Typography>
+                                    <Typography variant="body1">
+                                        {new Date(selectedTrader.created_at).toLocaleString(undefined, {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </Typography>
+                                </Box>
+                                {selectedTrader.prompt && (
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Trading Prompt</Typography>
+                                        <Typography variant="body2" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>
+                                            {selectedTrader.prompt}
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Box>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={handleDetailsClose}>Close</Button>
+                        </DialogActions>
+                    </>
+                )}
+            </Dialog>
+
+            {/* Dialog for Delete Confirmation */}
+            <Dialog
+                open={openDeleteDialog}
+                onClose={handleDeleteClose}
+            >
+                <DialogTitle>Delete Trading Agent</DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Are you sure you want to delete "{selectedTrader?.name}"? This action cannot be undone.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleDeleteClose}>Cancel</Button>
+                    <Button onClick={handleDeleteTrader} color="error" variant="contained">
+                        Delete
+                    </Button>
+                </DialogActions>
             </Dialog>
 
             {traders.length === 0 ? (
@@ -278,6 +442,8 @@ const Traders: React.FC = () => {
                                             variant="outlined"
                                             size="small"
                                             fullWidth
+                                            startIcon={<Info />}
+                                            onClick={() => handleDetailsOpen(trader)}
                                             sx={{ textTransform: 'none' }}
                                         >
                                             View Details
@@ -309,6 +475,20 @@ const Traders: React.FC = () => {
                                         >
                                             {trader.active ? 'Deactivate' : 'Activate'}
                                         </Button>
+                                        <IconButton
+                                            size="small"
+                                            color="error"
+                                            onClick={() => handleDeleteOpen(trader)}
+                                            sx={{
+                                                border: '1px solid',
+                                                borderColor: 'error.main',
+                                                '&:hover': {
+                                                    bgcolor: 'error.light',
+                                                },
+                                            }}
+                                        >
+                                            <Delete fontSize="small" />
+                                        </IconButton>
                                     </Box>
                                 </CardContent>
                             </Card>

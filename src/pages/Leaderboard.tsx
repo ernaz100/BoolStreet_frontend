@@ -1,6 +1,31 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Box, Container, Typography, Card, CardContent, Avatar, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Chip, CircularProgress, Alert, AlertTitle, Button, Divider } from '@mui/material';
-import { EmojiEvents, TrendingUp, Star, Refresh, Person } from '@mui/icons-material';
+import {
+    Box,
+    Container,
+    Typography,
+    Card,
+    CardContent,
+    Avatar,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Chip,
+    CircularProgress,
+    Alert,
+    AlertTitle,
+    Button,
+    Divider,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Tooltip
+} from '@mui/material';
+import { EmojiEvents, TrendingUp, AccountBalance, Refresh, Person, Schedule } from '@mui/icons-material';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -9,12 +34,21 @@ import { useNavigate } from 'react-router-dom';
 interface LeaderboardEntry {
     rank: number | null;
     name: string;
-    avatar: string | null;  // Can be URL to profile picture or initials
-    model: string;
-    accuracy: string;
+    avatar: string | null;
+    coins: string[];
     profit: string;
-    winRate: string;
+    netGain: string;
+    volume: string;
+    totalTrades?: number;
+    active?: boolean;
     isCurrentUser?: boolean;
+    balance?: number;
+    start_balance?: number;
+    created_at?: string;
+    llm_model?: string;
+    trading_frequency?: string;
+    prompt?: string;
+    trader_id?: number;
 }
 
 interface LeaderboardResponse {
@@ -22,15 +56,42 @@ interface LeaderboardResponse {
     currentUser: LeaderboardEntry | null;
 }
 
+/**
+ * Helper function to format trading frequency
+ */
+function formatFrequency(freq?: string): string {
+    if (!freq) return 'Not set';
+    const freqMap: Record<string, string> = {
+        '1min': 'Every Minute',
+        '5min': 'Every 5 Minutes',
+        '15min': 'Every 15 Minutes',
+        '30min': 'Every 30 Minutes',
+        '1hour': 'Every Hour',
+        '4hour': 'Every 4 Hours',
+        '1day': 'Once Per Day'
+    };
+    return freqMap[freq] || freq;
+}
+
 const Leaderboard: React.FC = () => {
-    // State for leaderboard data
     const [leaderboardData, setLeaderboardData] = useState<LeaderboardResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedTrader, setSelectedTrader] = useState<LeaderboardEntry | null>(null);
+    const [detailsOpen, setDetailsOpen] = useState(false);
     const { logout } = useAuth();
     const navigate = useNavigate();
 
-    // Fetch leaderboard data
+    const handleOpenDetails = (trader: LeaderboardEntry) => {
+        setSelectedTrader(trader);
+        setDetailsOpen(true);
+    };
+
+    const handleCloseDetails = () => {
+        setDetailsOpen(false);
+        setSelectedTrader(null);
+    };
+
     const fetchLeaderboardData = useCallback(async () => {
         try {
             setLoading(true);
@@ -60,9 +121,7 @@ const Leaderboard: React.FC = () => {
 
     useEffect(() => {
         fetchLeaderboardData();
-        // Refresh data every 5 minutes
         const interval = setInterval(fetchLeaderboardData, 5 * 60 * 1000);
-
         return () => clearInterval(interval);
     }, [fetchLeaderboardData]);
 
@@ -79,12 +138,7 @@ const Leaderboard: React.FC = () => {
             <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
                 <Alert
                     severity="error"
-                    sx={{
-                        mb: 3,
-                        '& .MuiAlert-message': {
-                            width: '100%'
-                        }
-                    }}
+                    sx={{ mb: 3, '& .MuiAlert-message': { width: '100%' } }}
                 >
                     <AlertTitle>Leaderboard Data Unavailable</AlertTitle>
                     {error}
@@ -107,11 +161,211 @@ const Leaderboard: React.FC = () => {
     const topPerformers = leaderboardData?.leaderboard || [];
     const currentUser = leaderboardData?.currentUser;
 
+    // Coins display component
+    const CoinsDisplay: React.FC<{ coins: string[], maxVisible?: number }> = ({ coins, maxVisible = 2 }) => {
+        if (!coins || coins.length === 0) {
+            return <Typography variant="body2" color="text.secondary">-</Typography>;
+        }
+
+        const visibleCoins = coins.slice(0, maxVisible);
+        const hiddenCoins = coins.slice(maxVisible);
+
+        return (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                {visibleCoins.map((coin, idx) => (
+                    <Chip key={idx} label={coin} size="small" color="info" sx={{ height: 22, fontSize: '0.75rem' }} />
+                ))}
+                {hiddenCoins.length > 0 && (
+                    <Tooltip title={hiddenCoins.join(', ')} arrow placement="top">
+                        <Chip
+                            label={`+${hiddenCoins.length}`}
+                            size="small"
+                            variant="outlined"
+                            sx={{ height: 22, fontSize: '0.75rem', cursor: 'pointer' }}
+                        />
+                    </Tooltip>
+                )}
+            </Box>
+        );
+    };
+
     return (
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
             <Typography variant="h4" sx={{ mb: 4, fontWeight: 700 }}>
                 Leaderboard
             </Typography>
+
+            {/* Trader Details Dialog */}
+            <Dialog open={detailsOpen} onClose={handleCloseDetails} maxWidth="sm" fullWidth>
+                {selectedTrader && (
+                    <>
+                        <DialogTitle>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Avatar
+                                        sx={{
+                                            width: 48,
+                                            height: 48,
+                                            bgcolor: selectedTrader.rank && selectedTrader.rank <= 3 ? 'primary.main' : 'grey.300',
+                                            color: selectedTrader.rank && selectedTrader.rank <= 3 ? 'white' : 'text.primary',
+                                        }}
+                                        src={selectedTrader.avatar?.startsWith('http') ? selectedTrader.avatar : undefined}
+                                    >
+                                        {!selectedTrader.avatar?.startsWith('http') && selectedTrader.avatar}
+                                    </Avatar>
+                                    <Box>
+                                        <Typography variant="h6">{selectedTrader.name}</Typography>
+                                        {selectedTrader.rank && (
+                                            <Chip label={`Rank #${selectedTrader.rank}`} size="small" color="primary" />
+                                        )}
+                                    </Box>
+                                </Box>
+                                <Chip
+                                    label={selectedTrader.active ? 'Active' : 'Inactive'}
+                                    size="small"
+                                    color={selectedTrader.active ? 'success' : 'default'}
+                                />
+                            </Box>
+                        </DialogTitle>
+                        <DialogContent>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 1 }}>
+                                {/* Performance Stats */}
+                                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+                                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                                        <Typography variant="body2" color="text.secondary">Profit</Typography>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                fontWeight: 600,
+                                                color: selectedTrader.profit?.startsWith('+') ? 'success.main' :
+                                                    selectedTrader.profit?.startsWith('-') ? 'error.main' : 'text.primary'
+                                            }}
+                                        >
+                                            {selectedTrader.profit}
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                                        <Typography variant="body2" color="text.secondary">Net Gain</Typography>
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                fontWeight: 600,
+                                                color: selectedTrader.netGain?.includes('+') ? 'success.main' :
+                                                    selectedTrader.netGain?.includes('-') ? 'error.main' : 'text.primary'
+                                            }}
+                                        >
+                                            {selectedTrader.netGain}
+                                        </Typography>
+                                    </Box>
+                                    <Box sx={{ textAlign: 'center', p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                                        <Typography variant="body2" color="text.secondary">Volume</Typography>
+                                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                            {selectedTrader.volume}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+
+                                {/* LLM Model */}
+                                {selectedTrader.llm_model && (
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">LLM Model</Typography>
+                                        <Typography variant="body1">{selectedTrader.llm_model.toUpperCase()}</Typography>
+                                    </Box>
+                                )}
+
+                                {/* Trading Coins */}
+                                <Box>
+                                    <Typography variant="subtitle2" color="text.secondary">Trading Coins</Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                                        {selectedTrader.coins && selectedTrader.coins.length > 0 ? (
+                                            selectedTrader.coins.map((coin, idx) => (
+                                                <Chip key={idx} label={coin} size="small" color="info" />
+                                            ))
+                                        ) : (
+                                            <Typography variant="body2" color="text.secondary">Not specified</Typography>
+                                        )}
+                                    </Box>
+                                </Box>
+
+                                {/* Trading Frequency */}
+                                {selectedTrader.trading_frequency && (
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Trading Frequency</Typography>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', mt: 0.5 }}>
+                                            <Schedule sx={{ fontSize: 18, color: 'text.secondary', mr: 1 }} />
+                                            <Typography variant="body1">
+                                                {formatFrequency(selectedTrader.trading_frequency)}
+                                            </Typography>
+                                        </Box>
+                                    </Box>
+                                )}
+
+                                {/* Balance Info */}
+                                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 2 }}>
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Current Balance</Typography>
+                                        <Typography variant="body1">
+                                            {selectedTrader.balance?.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) || '-'}
+                                        </Typography>
+                                    </Box>
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Starting Balance</Typography>
+                                        <Typography variant="body1">
+                                            {selectedTrader.start_balance?.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) || '-'}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+
+                                {/* Total Trades */}
+                                <Box>
+                                    <Typography variant="subtitle2" color="text.secondary">Total Trades</Typography>
+                                    <Typography variant="body1">{selectedTrader.totalTrades ?? 0}</Typography>
+                                </Box>
+
+                                {/* Created */}
+                                {selectedTrader.created_at && (
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Created</Typography>
+                                        <Typography variant="body1">
+                                            {new Date(selectedTrader.created_at).toLocaleString(undefined, {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}
+                                        </Typography>
+                                    </Box>
+                                )}
+
+                                {/* Trading Prompt */}
+                                {selectedTrader.prompt && (
+                                    <Box>
+                                        <Typography variant="subtitle2" color="text.secondary">Trading Prompt</Typography>
+                                        <Typography
+                                            variant="body2"
+                                            sx={{
+                                                mt: 0.5,
+                                                whiteSpace: 'pre-wrap',
+                                                bgcolor: 'grey.50',
+                                                p: 1.5,
+                                                borderRadius: 1,
+                                                maxHeight: 150,
+                                                overflow: 'auto'
+                                            }}
+                                        >
+                                            {selectedTrader.prompt}
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </Box>
+                        </DialogContent>
+                        <DialogActions>
+                            <Button onClick={handleCloseDetails}>Close</Button>
+                        </DialogActions>
+                    </>
+                )}
+            </Dialog>
 
             {/* Top 3 Performers */}
             <Box sx={{
@@ -124,12 +378,19 @@ const Leaderboard: React.FC = () => {
                     <Card
                         key={performer.rank}
                         elevation={0}
+                        onClick={() => handleOpenDetails(performer)}
                         sx={{
                             borderRadius: 2,
                             border: '1px solid',
                             borderColor: 'divider',
                             position: 'relative',
                             overflow: 'visible',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            '&:hover': {
+                                boxShadow: 3,
+                                transform: 'translateY(-2px)'
+                            }
                         }}
                     >
                         {performer.rank === 1 && (
@@ -155,16 +416,15 @@ const Leaderboard: React.FC = () => {
                                         fontSize: '1.2rem',
                                         fontWeight: 600,
                                     }}
+                                    src={performer.avatar?.startsWith('http') ? performer.avatar : undefined}
                                 >
-                                    {performer.avatar}
+                                    {!performer.avatar?.startsWith('http') && performer.avatar}
                                 </Avatar>
                                 <Box sx={{ ml: 2 }}>
                                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
                                         {performer.name}
                                     </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        {performer.model}
-                                    </Typography>
+                                    <CoinsDisplay coins={performer.coins} maxVisible={3} />
                                 </Box>
                             </Box>
 
@@ -174,24 +434,31 @@ const Leaderboard: React.FC = () => {
                                 gap: 2
                             }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <TrendingUp sx={{ color: 'success.main', mr: 1 }} />
+                                    <TrendingUp sx={{ color: performer.netGain?.includes('+') ? 'success.main' : 'error.main', mr: 1 }} />
                                     <Box>
                                         <Typography variant="body2" color="text.secondary">
-                                            Profit
+                                            Net Gain
                                         </Typography>
-                                        <Typography variant="h6" color="success.main" sx={{ fontWeight: 600 }}>
-                                            {performer.profit}
+                                        <Typography
+                                            variant="h6"
+                                            sx={{
+                                                fontWeight: 600,
+                                                color: performer.netGain?.includes('+') ? 'success.main' :
+                                                    performer.netGain?.includes('-') ? 'error.main' : 'text.primary'
+                                            }}
+                                        >
+                                            {performer.netGain}
                                         </Typography>
                                     </Box>
                                 </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Star sx={{ color: 'warning.main', mr: 1 }} />
+                                    <AccountBalance sx={{ color: 'primary.main', mr: 1 }} />
                                     <Box>
                                         <Typography variant="body2" color="text.secondary">
-                                            Win Rate
+                                            Volume
                                         </Typography>
                                         <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                            {performer.winRate}
+                                            {performer.volume}
                                         </Typography>
                                     </Box>
                                 </Box>
@@ -211,15 +478,24 @@ const Leaderboard: React.FC = () => {
                         <TableRow>
                             <TableCell>Rank</TableCell>
                             <TableCell>Trader</TableCell>
-                            <TableCell>Model</TableCell>
-                            <TableCell align="right">Accuracy</TableCell>
-                            <TableCell align="right">Profit</TableCell>
-                            <TableCell align="right">Win Rate</TableCell>
+                            <TableCell>Coins</TableCell>
+                            <TableCell align="right">Trades</TableCell>
+                            <TableCell align="right">Volume</TableCell>
+                            <TableCell align="right">Net Gain</TableCell>
+                            <TableCell align="right">Profit %</TableCell>
                         </TableRow>
                     </TableHead>
                     <TableBody>
                         {topPerformers.map((performer) => (
-                            <TableRow key={performer.rank || 'unranked'}>
+                            <TableRow
+                                key={performer.rank || 'unranked'}
+                                onClick={() => handleOpenDetails(performer)}
+                                sx={{
+                                    bgcolor: performer.isCurrentUser ? 'action.selected' : 'inherit',
+                                    cursor: 'pointer',
+                                    '&:hover': { bgcolor: 'action.hover' }
+                                }}
+                            >
                                 <TableCell>
                                     <Chip
                                         label={`#${performer.rank || 'NA'}`}
@@ -243,15 +519,46 @@ const Leaderboard: React.FC = () => {
                                         >
                                             {!performer.avatar?.startsWith('http') && performer.avatar}
                                         </Avatar>
-                                        {performer.name}
+                                        <Box>
+                                            <Typography variant="body2" sx={{ fontWeight: performer.isCurrentUser ? 600 : 400 }}>
+                                                {performer.name}
+                                                {performer.isCurrentUser && (
+                                                    <Chip label="You" size="small" color="secondary" sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} />
+                                                )}
+                                            </Typography>
+                                            {performer.active && (
+                                                <Chip label="Active" size="small" color="success" sx={{ height: 18, fontSize: '0.65rem', mt: 0.5 }} />
+                                            )}
+                                        </Box>
                                     </Box>
                                 </TableCell>
-                                <TableCell>{performer.model}</TableCell>
-                                <TableCell align="right">{performer.accuracy}</TableCell>
-                                <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>
+                                <TableCell>
+                                    <CoinsDisplay coins={performer.coins} maxVisible={2} />
+                                </TableCell>
+                                <TableCell align="right">
+                                    <Typography variant="body2" color="text.secondary">
+                                        {performer.totalTrades ?? 0}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                    <Typography variant="body2">
+                                        {performer.volume}
+                                    </Typography>
+                                </TableCell>
+                                <TableCell align="right" sx={{
+                                    color: performer.netGain?.includes('+') ? 'success.main' :
+                                        performer.netGain?.includes('-') ? 'error.main' : 'text.primary',
+                                    fontWeight: 600
+                                }}>
+                                    {performer.netGain}
+                                </TableCell>
+                                <TableCell align="right" sx={{
+                                    color: performer.profit?.startsWith('+') ? 'success.main' :
+                                        performer.profit?.startsWith('-') ? 'error.main' : 'text.primary',
+                                    fontWeight: 600
+                                }}>
                                     {performer.profit}
                                 </TableCell>
-                                <TableCell align="right">{performer.winRate}</TableCell>
                             </TableRow>
                         ))}
 
@@ -259,11 +566,14 @@ const Leaderboard: React.FC = () => {
                         {currentUser && !topPerformers.some(p => p.isCurrentUser) && (
                             <>
                                 <TableRow>
-                                    <TableCell colSpan={6}>
+                                    <TableCell colSpan={7}>
                                         <Divider />
                                     </TableCell>
                                 </TableRow>
-                                <TableRow sx={{ bgcolor: 'action.hover' }}>
+                                <TableRow
+                                    onClick={() => handleOpenDetails(currentUser)}
+                                    sx={{ bgcolor: 'action.selected', cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+                                >
                                     <TableCell>
                                         <Chip
                                             label={currentUser.rank ? `#${currentUser.rank}` : '#NA'}
@@ -287,15 +597,44 @@ const Leaderboard: React.FC = () => {
                                             >
                                                 {!currentUser.avatar?.startsWith('http') ? <Person /> : null}
                                             </Avatar>
-                                            {currentUser.name}
+                                            <Box>
+                                                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                                    {currentUser.name}
+                                                    <Chip label="You" size="small" color="secondary" sx={{ ml: 1, height: 20, fontSize: '0.7rem' }} />
+                                                </Typography>
+                                                {currentUser.active && (
+                                                    <Chip label="Active" size="small" color="success" sx={{ height: 18, fontSize: '0.65rem', mt: 0.5 }} />
+                                                )}
+                                            </Box>
                                         </Box>
                                     </TableCell>
-                                    <TableCell>{currentUser.model}</TableCell>
-                                    <TableCell align="right">{currentUser.accuracy}</TableCell>
-                                    <TableCell align="right" sx={{ color: 'success.main', fontWeight: 600 }}>
+                                    <TableCell>
+                                        <CoinsDisplay coins={currentUser.coins} maxVisible={2} />
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <Typography variant="body2" color="text.secondary">
+                                            {currentUser.totalTrades ?? 0}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell align="right">
+                                        <Typography variant="body2">
+                                            {currentUser.volume}
+                                        </Typography>
+                                    </TableCell>
+                                    <TableCell align="right" sx={{
+                                        color: currentUser.netGain?.includes('+') ? 'success.main' :
+                                            currentUser.netGain?.includes('-') ? 'error.main' : 'text.primary',
+                                        fontWeight: 600
+                                    }}>
+                                        {currentUser.netGain}
+                                    </TableCell>
+                                    <TableCell align="right" sx={{
+                                        color: currentUser.profit?.startsWith('+') ? 'success.main' :
+                                            currentUser.profit?.startsWith('-') ? 'error.main' : 'text.primary',
+                                        fontWeight: 600
+                                    }}>
                                         {currentUser.profit}
                                     </TableCell>
-                                    <TableCell align="right">{currentUser.winRate}</TableCell>
                                 </TableRow>
                             </>
                         )}
@@ -306,4 +645,4 @@ const Leaderboard: React.FC = () => {
     );
 };
 
-export default Leaderboard; 
+export default Leaderboard;
