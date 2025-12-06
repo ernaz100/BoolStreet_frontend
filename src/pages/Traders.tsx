@@ -15,6 +15,7 @@ import {
     DialogActions,
     DialogContentText,
     IconButton,
+    Snackbar,
 } from '@mui/material';
 import { AddCircle, TrendingUp, Speed, Schedule, Delete, Info } from '@mui/icons-material';
 import axios from 'axios';
@@ -58,6 +59,12 @@ const Traders: React.FC = () => {
     const [openDetailsDialog, setOpenDetailsDialog] = useState(false);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [selectedTrader, setSelectedTrader] = useState<Trader | null>(null);
+    const [activatingTraderId, setActivatingTraderId] = useState<number | null>(null);
+    const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
+        open: false,
+        message: '',
+        severity: 'info'
+    });
     const { logout } = useAuth();
     const navigate = useNavigate();
 
@@ -85,10 +92,13 @@ const Traders: React.FC = () => {
     };
 
     const handleActivateTrader = async (traderId: number, currentActive: boolean) => {
+        const isActivating = !currentActive;
+        setActivatingTraderId(traderId);
+
         try {
             const response = await axios.post(
                 `${process.env.REACT_APP_BACKEND_URL}/models/${traderId}/activate`,
-                { active: !currentActive },
+                { active: isActivating },
                 {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -97,13 +107,51 @@ const Traders: React.FC = () => {
             );
             setTraders(response.data.models);
             setError(null);
+
+            // Show first trade result if we just activated
+            if (isActivating && response.data.first_trade) {
+                const firstTrade = response.data.first_trade;
+                if (firstTrade.success) {
+                    const decision = firstTrade.decision;
+                    const tradeResult = firstTrade.trade_result;
+                    const action = decision?.action || 'hold';
+                    const coin = decision?.coin || 'Unknown';
+                    const price = tradeResult?.price ? `$${tradeResult.price.toFixed(2)}` : '';
+
+                    setSnackbar({
+                        open: true,
+                        message: `First trade executed: ${action.toUpperCase()} ${coin} ${price}`,
+                        severity: 'success'
+                    });
+                } else {
+                    setSnackbar({
+                        open: true,
+                        message: `Trader activated. First trade: ${firstTrade.error || 'No action taken (likely hold)'}`,
+                        severity: 'info'
+                    });
+                }
+            } else if (!isActivating) {
+                setSnackbar({
+                    open: true,
+                    message: 'Trader deactivated',
+                    severity: 'info'
+                });
+            }
         } catch (err: any) {
             if (err.response?.status === 401) {
                 logout();
                 navigate('/');
                 return;
             }
-            setError('Failed to update trader status');
+            const errorMsg = err.response?.data?.error || 'Failed to update trader status';
+            setError(errorMsg);
+            setSnackbar({
+                open: true,
+                message: errorMsg,
+                severity: 'error'
+            });
+        } finally {
+            setActivatingTraderId(null);
         }
     };
 
@@ -452,6 +500,7 @@ const Traders: React.FC = () => {
                                             variant={trader.active ? 'outlined' : 'contained'}
                                             size="small"
                                             fullWidth
+                                            disabled={activatingTraderId === trader.id}
                                             onClick={() => handleActivateTrader(trader.id, trader.active)}
                                             sx={{
                                                 textTransform: 'none',
@@ -473,7 +522,11 @@ const Traders: React.FC = () => {
                                                     }),
                                             }}
                                         >
-                                            {trader.active ? 'Deactivate' : 'Activate'}
+                                            {activatingTraderId === trader.id ? (
+                                                <CircularProgress size={20} color="inherit" />
+                                            ) : (
+                                                trader.active ? 'Deactivate' : 'Activate'
+                                            )}
                                         </Button>
                                         <IconButton
                                             size="small"
@@ -522,6 +575,22 @@ const Traders: React.FC = () => {
                     </Box>
                 </>
             )}
+
+            {/* Snackbar for notifications */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={6000}
+                onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+            >
+                <Alert
+                    onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}
+                    severity={snackbar.severity}
+                    sx={{ width: '100%' }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Container>
     );
 };

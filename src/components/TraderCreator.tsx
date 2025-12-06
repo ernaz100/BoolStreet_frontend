@@ -19,7 +19,7 @@ import {
     IconButton,
     Skeleton,
 } from '@mui/material';
-import { AutoGraph, CheckCircle, Info, ExpandMore, Code, Refresh, Shield, TrendingUp } from '@mui/icons-material';
+import { AutoGraph, CheckCircle, Info, ExpandMore, Code, Refresh, Shield } from '@mui/icons-material';
 import Slider from '@mui/material/Slider';
 import axios from 'axios';
 
@@ -435,9 +435,27 @@ Sharpe Ratio: 0.0`;
                             ))}
                         </Select>
                     </FormControl>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: -2 }}>
-                        Select the coins your agent will analyze and trade (Hyperliquid perpetuals)
-                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: -2 }}>
+                        <Typography variant="body2" color="text.secondary">
+                            Select the coins your agent will analyze and trade (Hyperliquid perpetuals)
+                        </Typography>
+                        <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                                if (coins.length === config.coins.length) {
+                                    // Deselect all
+                                    setCoins([]);
+                                } else {
+                                    // Select all
+                                    setCoins(config.coins.map(c => c.id));
+                                }
+                            }}
+                            sx={{ ml: 'auto', textTransform: 'none', minWidth: 'auto' }}
+                        >
+                            {coins.length === config.coins.length ? 'Deselect All' : 'Select All'}
+                        </Button>
+                    </Box>
 
                     {/* Trading Frequency */}
                     <FormControl fullWidth required>

@@ -27,30 +27,21 @@ import {
     VpnKey,
     TrendingUp,
     ArrowForward,
-    AutoGraph,
     CheckCircle,
     Error,
     PlayArrow,
-    AccountBalance,
     ExpandMore,
     ExpandLess,
     Visibility,
 } from '@mui/icons-material';
 import {
-    BarChart,
-    Bar,
-    PieChart,
-    Pie,
-    Cell,
     LineChart,
     Line,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
-    Legend,
     ResponsiveContainer,
-    ReferenceLine,
 } from 'recharts';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -109,17 +100,6 @@ interface Trader {
     created_at: string;
     balance: number;
     tickers: string;
-}
-
-interface Position {
-    coin: string;
-    total_quantity: number;
-    total_value: number;
-    avg_price: number;
-    long_count: number;
-    short_count: number;
-    hold_count: number;
-    last_trade: string | null;
 }
 
 interface BalanceHistoryPoint {
@@ -205,7 +185,6 @@ const Dashboard: React.FC = () => {
     const [apiLogs, setApiLogs] = useState<APICallLog[]>([]);
     const [executing, setExecuting] = useState(false);
     const [executeMessage, setExecuteMessage] = useState<string | null>(null);
-    const [positions, setPositions] = useState<Position[]>([]);
     const [balanceHistory, setBalanceHistory] = useState<BalanceHistoryPoint[]>([]);
     const [tradeMarkers, setTradeMarkers] = useState<TradeMarker[]>([]);
     const [brokerBalances, setBrokerBalances] = useState<BrokerBalance[]>([]);
@@ -233,21 +212,8 @@ const Dashboard: React.FC = () => {
     const applyCachedData = useCallback((data: any) => {
         if (data.broker_balances) {
             setBrokerBalances(data.broker_balances);
-            // Extract positions from broker balances
-            const allPositions: Position[] = [];
-            data.broker_balances.forEach((broker: any) => {
-                if (broker.perp_positions) {
-                    broker.perp_positions.forEach((pos: any) => {
-                        allPositions.push({
-                            ...pos,
-                            broker: broker.exchange
-                        });
-                    });
-                }
-            });
-            setPositions(allPositions);
         }
-        if (data.trades) setTrades(data.trades);
+        if (data.trades) setTrades(data.trades.filter((trade: Trade) => trade.side !== 'hold'));
         if (data.api_logs) setApiLogs(data.api_logs);
         if (data.traders) setTraders(data.traders);
         // Only update balance history if data has changed to prevent chart flickering
